@@ -51,7 +51,8 @@ pub struct FileDialog {
   /// Dialog type
   dialog_type: DialogType,
 
-  anchor: Option<(Align2, Vec2)>,
+  default_size: Vec2,
+  anchor: (Align2, Vec2),
   filter: Option<OsString>,
   resizable: bool,
 
@@ -99,7 +100,8 @@ impl FileDialog {
       state: State::Closed,
       dialog_type,
 
-      anchor: None,
+      default_size: vec2(512.0, 512.0),
+      anchor: (Align2::CENTER_CENTER, vec2(0.0, 0.0)),
       filter: None,
       resizable: true,
 
@@ -109,13 +111,18 @@ impl FileDialog {
   }
 
   pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
-    self.anchor = Some((align, offset.into()));
+    self.anchor = (align, offset.into());
     self
   }
 
   /// Simple single extension filter.
   pub fn filter(mut self, filter: String) -> Self {
     self.filter = Some(filter.into());
+    self
+  }
+
+  pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
+    self.default_size = default_size.into();
     self
   }
 
@@ -230,15 +237,13 @@ impl FileDialog {
   }
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
-    let mut window = Window::new(self.title())
+    let (align, offset) = self.anchor;
+    let window = Window::new(self.title())
       .open(is_open)
-      .default_size(vec2(512.0, 512.0))
+      .default_size(self.default_size)
+      .anchor(align, offset)
       .resizable(self.resizable)
       .collapsible(false);
-
-    if let Some((align, offset)) = self.anchor {
-      window = window.anchor(align, offset);
-    }
 
     window.show(ctx, |ui| self.ui_in_window(ui));
   }
