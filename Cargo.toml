@@ -1,0 +1,11 @@
+[package]
+authors = ["Elias Kartashov <elias@lowenware.com>", "Barugon"]
+description = "File dialog window for egui"
+edition = "2021"
+license = "MIT"
+name = "egui_file"
+version = "0.1.0"
+
+[dependencies.egui]
+# I'll change this to the next version of egui when it's released.
+git = "https://github.com/emilk/egui.git"
