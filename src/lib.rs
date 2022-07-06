@@ -266,7 +266,7 @@ impl FileDialog {
     // Top directory field with buttons
     ui.horizontal(|ui| {
       ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
-        let response = ui.button("⬆ ").on_hover_ui_at_pointer(|ui| {
+        let response = ui.button("⬆").on_hover_ui_at_pointer(|ui| {
           ui.label("Parent Folder");
         });
         if response.clicked() {
@@ -274,7 +274,7 @@ impl FileDialog {
         }
       });
       ui.with_layout(Layout::right_to_left(), |ui| {
-        let response = ui.button("⟲ ").on_hover_ui_at_pointer(|ui| {
+        let response = ui.button("⟲").on_hover_ui_at_pointer(|ui| {
           ui.label("Refresh");
         });
         if response.clicked() {
