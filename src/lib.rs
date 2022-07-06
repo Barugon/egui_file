@@ -58,7 +58,7 @@ pub struct FileDialog {
 
   // Show hidden files on unix systems.
   #[cfg(unix)]
-  hidden: bool,
+  show_hidden: bool,
 }
 
 impl FileDialog {
@@ -106,7 +106,7 @@ impl FileDialog {
       resizable: true,
 
       #[cfg(unix)]
-      hidden: false,
+      show_hidden: false,
     }
   }
 
@@ -265,32 +265,27 @@ impl FileDialog {
 
     // Top directory field with buttons
     ui.horizontal(|ui| {
-      if ui
-        .button("⬆ ")
-        .on_hover_ui_at_pointer(|ui| {
+      ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
+        let response = ui.button("⬆ ").on_hover_ui_at_pointer(|ui| {
           ui.label("Parent Folder");
-        })
-        .clicked()
-      {
-        command = Some(Command::UpDirectory);
-      }
+        });
+        if response.clicked() {
+          command = Some(Command::UpDirectory);
+        }
+      });
       ui.with_layout(Layout::right_to_left(), |ui| {
-        if ui
-          .button("⟲ ")
-          .on_hover_ui_at_pointer(|ui| {
-            ui.label("Refresh");
-          })
-          .clicked()
-        {
+        let response = ui.button("⟲ ").on_hover_ui_at_pointer(|ui| {
+          ui.label("Refresh");
+        });
+        if response.clicked() {
           command = Some(Command::Refresh);
         }
-        if ui
-          .add_sized(
-            ui.available_size(),
-            TextEdit::singleline(&mut self.path_edit),
-          )
-          .lost_focus()
-        {
+
+        let response = ui.add_sized(
+          ui.available_size(),
+          TextEdit::singleline(&mut self.path_edit),
+        );
+        if response.lost_focus() {
           let path = PathBuf::from(&self.path_edit);
           command = Some(Command::Open(path));
         };
@@ -324,7 +319,7 @@ impl FileDialog {
             let filename = get_file_name(path);
 
             #[cfg(unix)]
-            if !self.hidden && filename.starts_with('.') {
+            if !self.show_hidden && filename.starts_with('.') {
               continue;
             }
 
@@ -462,7 +457,7 @@ impl FileDialog {
 
       #[cfg(unix)]
       ui.with_layout(Layout::right_to_left(), |ui| {
-        ui.checkbox(&mut self.hidden, "Show Hidden");
+        ui.checkbox(&mut self.show_hidden, "Show Hidden");
       });
     });
 
