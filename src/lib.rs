@@ -1,4 +1,4 @@
-use egui::{vec2, Align2, Context, Key, Layout, ScrollArea, TextEdit, Ui, Vec2, Window};
+use egui::{vec2, Align2, Context, Key, Layout, ScrollArea, TextEdit, Ui, Vec2, Window, RichText};
 use std::{
   env,
   ffi::OsString,
@@ -204,9 +204,9 @@ impl FileDialog {
 
   fn title(&self) -> &str {
     match self.dialog_type {
-      DialogType::SelectFolder => "📁 Select Folder",
-      DialogType::OpenFile => "📂 Open File",
-      DialogType::SaveFile => "💾 Save File",
+      DialogType::SelectFolder => "📁  Select Folder",
+      DialogType::OpenFile => "📂  Open File",
+      DialogType::SaveFile => "💾  Save File",
     }
   }
 
@@ -235,7 +235,7 @@ impl FileDialog {
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
     let (align, offset) = self.anchor;
-    let window = Window::new(self.title())
+    let window = Window::new(RichText::new(self.title()).strong())
       .open(is_open)
       .default_size(self.default_size)
       .anchor(align, offset)
