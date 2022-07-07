@@ -1,4 +1,4 @@
-use egui::{vec2, Align2, Context, Key, ScrollArea, TextEdit, Ui, Vec2, Window};
+use egui::{vec2, Align2, Context, Key, Layout, ScrollArea, TextEdit, Ui, Vec2, Window};
 use std::{
   env,
   ffi::OsString,
@@ -6,9 +6,6 @@ use std::{
   io::Error,
   path::{Path, PathBuf},
 };
-
-#[cfg(unix)]
-use egui::Layout;
 
 // #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, )]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
