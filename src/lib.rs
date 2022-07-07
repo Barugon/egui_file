@@ -263,17 +263,13 @@ impl FileDialog {
     // Top directory field with buttons
     ui.horizontal(|ui| {
       ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
-        let response = ui.button("⬆").on_hover_ui_at_pointer(|ui| {
-          ui.label("Parent Folder");
-        });
+        let response = ui.button("⬆").on_hover_text_at_pointer("Parent Folder");
         if response.clicked() {
           command = Some(Command::UpDirectory);
         }
       });
       ui.with_layout(Layout::right_to_left(), |ui| {
-        let response = ui.button("⟲").on_hover_ui_at_pointer(|ui| {
-          ui.label("Refresh");
-        });
+        let response = ui.button("⟲").on_hover_text_at_pointer("Refresh");
         if response.clicked() {
           command = Some(Command::Refresh);
         }
