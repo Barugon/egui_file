@@ -329,9 +329,14 @@ impl FileDialog {
               let selectable_label = ui.selectable_label(is_selected, label);
               if selectable_label.clicked() {
                 command = Some(Command::Select(path.clone()));
-              };
+              }
+
               if selectable_label.double_clicked() {
-                command = Some(Command::Open(path.clone()));
+                if self.dialog_type == DialogType::SaveFile {
+                  command = Some(Command::Save(path.clone()));
+                } else {
+                  command = Some(Command::Open(path.clone()));
+                }
               }
             });
           }
@@ -380,15 +385,9 @@ impl FileDialog {
               }
             }
             DialogType::SaveFile => {
-              if path.exists() {
-                if path.is_dir() {
-                  command = Some(Command::Open(path));
-                } else if path.is_file() {
-                  command = Some(Command::Save(path));
-                }
+              if path.is_dir() {
+                command = Some(Command::Open(path));
               } else {
-                let filename = &self.filename_edit;
-                let path = path.join(filename);
                 command = Some(Command::Save(path));
               }
             }
