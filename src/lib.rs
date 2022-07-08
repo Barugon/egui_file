@@ -1,4 +1,6 @@
-use egui::{vec2, Align2, Context, Key, Layout, ScrollArea, TextEdit, Ui, Vec2, Window, RichText};
+use egui::{
+  vec2, Align2, Context, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
+};
 use std::{
   env,
   ffi::OsString,
@@ -48,6 +50,7 @@ pub struct FileDialog {
   /// Dialog type
   dialog_type: DialogType,
 
+  current_pos: Option<Pos2>,
   default_size: Vec2,
   anchor: (Align2, Vec2),
   filter: Option<OsString>,
@@ -97,6 +100,7 @@ impl FileDialog {
       state: State::Closed,
       dialog_type,
 
+      current_pos: None,
       default_size: vec2(512.0, 512.0),
       anchor: (Align2::CENTER_CENTER, vec2(0.0, 0.0)),
       filter: None,
@@ -115,6 +119,11 @@ impl FileDialog {
   /// Simple single extension filter.
   pub fn filter(mut self, filter: String) -> Self {
     self.filter = Some(filter.into());
+    self
+  }
+
+  pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
+    self.current_pos = Some(current_pos.into());
     self
   }
 
@@ -235,12 +244,16 @@ impl FileDialog {
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
     let (align, offset) = self.anchor;
-    let window = Window::new(RichText::new(self.title()).strong())
+    let mut window = Window::new(RichText::new(self.title()).strong())
       .open(is_open)
       .default_size(self.default_size)
       .anchor(align, offset)
       .resizable(self.resizable)
       .collapsible(false);
+
+    if let Some(current_pos) = self.current_pos {
+      window = window.current_pos(current_pos);
+    }
 
     window.show(ctx, |ui| self.ui_in_window(ui));
   }
