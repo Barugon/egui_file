@@ -55,6 +55,8 @@ pub struct FileDialog {
   anchor: (Align2, Vec2),
   filter: Option<OsString>,
   resizable: bool,
+  rename: bool,
+  new_folder: bool,
 
   // Show hidden files on unix systems.
   #[cfg(unix)]
@@ -105,6 +107,8 @@ impl FileDialog {
       anchor: (Align2::CENTER_CENTER, vec2(0.0, 0.0)),
       filter: None,
       resizable: true,
+      rename: true,
+      new_folder: true,
 
       #[cfg(unix)]
       show_hidden: false,
@@ -134,6 +138,16 @@ impl FileDialog {
 
   pub fn resizable(mut self, resizable: bool) -> Self {
     self.resizable = resizable;
+    self
+  }
+
+  pub fn show_rename(mut self, rename: bool) -> Self {
+    self.rename = rename;
+    self
+  }
+
+  pub fn show_new_folder(mut self, new_folder: bool) -> Self {
+    self.new_folder = new_folder;
     self
   }
 
@@ -365,18 +379,22 @@ impl FileDialog {
     ui.horizontal(|ui| {
       ui.label("File:");
       ui.with_layout(Layout::right_to_left(), |ui| {
-        if ui.button("New Folder").clicked() {
-          command = Some(Command::CreateDirectory);
+        if self.new_folder {
+          if ui.button("New Folder").clicked() {
+            command = Some(Command::CreateDirectory);
+          }
         }
 
-        ui.add_enabled_ui(self.can_rename(), |ui| {
-          if ui.button("Rename").clicked() {
-            if let Some(from) = self.selected_file.clone() {
-              let to = from.with_file_name(&self.filename_edit);
-              command = Some(Command::Rename(from, to));
+        if self.rename {
+          ui.add_enabled_ui(self.can_rename(), |ui| {
+            if ui.button("Rename").clicked() {
+              if let Some(from) = self.selected_file.clone() {
+                let to = from.with_file_name(&self.filename_edit);
+                command = Some(Command::Rename(from, to));
+              }
             }
-          }
-        });
+          });
+        }
 
         let result = ui.add_sized(
           ui.available_size(),
