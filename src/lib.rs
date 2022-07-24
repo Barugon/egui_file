@@ -295,7 +295,7 @@ impl FileDialog {
           command = Some(Command::UpDirectory);
         }
       });
-      ui.with_layout(Layout::right_to_left(), |ui| {
+      ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
         let response = ui.button("⟲").on_hover_text_at_pointer("Refresh");
         if response.clicked() {
           command = Some(Command::Refresh);
@@ -378,7 +378,7 @@ impl FileDialog {
     ui.separator();
     ui.horizontal(|ui| {
       ui.label("File:");
-      ui.with_layout(Layout::right_to_left(), |ui| {
+      ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
         if self.new_folder {
           if ui.button("New Folder").clicked() {
             command = Some(Command::CreateDirectory);
@@ -479,7 +479,7 @@ impl FileDialog {
       }
 
       #[cfg(unix)]
-      ui.with_layout(Layout::right_to_left(), |ui| {
+      ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
         ui.checkbox(&mut self.show_hidden, "Show Hidden");
       });
     });
