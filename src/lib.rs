@@ -115,40 +115,45 @@ impl FileDialog {
     }
   }
 
-  pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
-    self.anchor = (align, offset.into());
-    self
+  pub fn anchor(self, align: Align2, offset: impl Into<Vec2>) -> Self {
+    Self {
+      anchor: (align, offset.into()),
+      ..self
+    }
   }
 
   /// Simple single extension filter.
-  pub fn filter(mut self, filter: String) -> Self {
-    self.filter = Some(filter.into());
-    self
+  pub fn filter(self, filter: String) -> Self {
+    Self {
+      filter: Some(filter.into()),
+      ..self
+    }
   }
 
-  pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
-    self.current_pos = Some(current_pos.into());
-    self
+  pub fn current_pos(self, current_pos: impl Into<Pos2>) -> Self {
+    Self {
+      current_pos: Some(current_pos.into()),
+      ..self
+    }
   }
 
-  pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
-    self.default_size = default_size.into();
-    self
+  pub fn default_size(self, default_size: impl Into<Vec2>) -> Self {
+    Self {
+      default_size: default_size.into(),
+      ..self
+    }
   }
 
-  pub fn resizable(mut self, resizable: bool) -> Self {
-    self.resizable = resizable;
-    self
+  pub fn resizable(self, resizable: bool) -> Self {
+    Self { resizable, ..self }
   }
 
-  pub fn show_rename(mut self, rename: bool) -> Self {
-    self.rename = rename;
-    self
+  pub fn show_rename(self, rename: bool) -> Self {
+    Self { rename, ..self }
   }
 
-  pub fn show_new_folder(mut self, new_folder: bool) -> Self {
-    self.new_folder = new_folder;
-    self
+  pub fn show_new_folder(self, new_folder: bool) -> Self {
+    Self { new_folder, ..self }
   }
 
   pub fn dialog_type(&self) -> DialogType {
