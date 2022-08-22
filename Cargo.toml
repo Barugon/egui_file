@@ -1,5 +1,5 @@
 [package]
-authors = ["Elias Kartashov <elias@lowenware.com>", "Barugon"]
+authors = ["Elias Kartashov <elias@lowenware.com>", "Barugon <barugon@dungeonbox.net>"]
 description = "File dialog window for egui"
 edition = "2021"
 keywords = ["file-dialog", "file-picker"]
