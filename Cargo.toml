@@ -7,5 +7,4 @@ name = "egui_file"
 version = "0.2.0"
 
 [dependencies.egui]
-# I'll change this to the next version of egui when it's released.
-git = "https://github.com/emilk/egui.git"
+version = "0.19"
