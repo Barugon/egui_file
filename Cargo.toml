@@ -2,7 +2,7 @@
 authors = ["Elias Kartashov <elias@lowenware.com>", "Barugon"]
 description = "File dialog window for egui"
 edition = "2021"
-keywords = ["file dialog", "file picker"]
+keywords = ["file-dialog", "file-picker"]
 license = "MIT"
 name = "egui_file"
 repository = "https://github.com/Barugon/egui_file"
