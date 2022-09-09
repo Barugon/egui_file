@@ -1,4 +1,4 @@
-# File dialog window (a.k.a. file picker) for egui
+# File dialog window (a.k.a. file picker) for [egui](https://github.com/emilk/egui)
 
 [![Crates.io](https://img.shields.io/crates/v/egui_file)](https://crates.io/crates/egui_file)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/egui_file)
