@@ -571,7 +571,15 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
         .filter_map(|result| result.ok())
         .map(|entry| entry.path())
         .collect();
-      result.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+      result.sort_by(|a, b| {
+        let da = a.is_dir();
+        let db = b.is_dir();
+        if da == db {
+          a.file_name().cmp(&b.file_name())
+        } else {
+          db.cmp(&da)
+        }
+      });
       Ok(result)
     }
     Err(e) => Err(e),
