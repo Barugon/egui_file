@@ -554,8 +554,31 @@ impl FileDialog {
   }
 }
 
+#[cfg(windows)]
+fn is_drive_root(path: &Path) -> bool {
+  if let Some(path) = path.to_str() {
+    if let Some(ch) = path.chars().next() {
+      if ('A'..='Z').contains(&ch) {
+        if &path[1..] == ":\\" {
+          return true;
+        }
+      }
+    }
+  }
+  false
+}
+
 fn get_file_name(path: &Path) -> &str {
-  if path.is_file() || path.is_dir() {
+  if path.is_dir() {
+    #[cfg(windows)]
+    if is_drive_root(path) {
+      return path.to_str().unwrap_or_default();
+    }
+    return path
+      .file_name()
+      .and_then(|name| name.to_str())
+      .unwrap_or_default();
+  } else if path.is_file() {
     return path
       .file_name()
       .and_then(|name| name.to_str())
@@ -564,7 +587,27 @@ fn get_file_name(path: &Path) -> &str {
   Default::default()
 }
 
+#[cfg(windows)]
+extern "C" {
+  pub fn GetLogicalDrives() -> u32;
+}
+
 fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
+  #[cfg(windows)]
+  let drives = {
+    let mut drives = unsafe { GetLogicalDrives() };
+    let mut letter = 'A' as u8;
+    let mut drive_names = Vec::new();
+    while drives > 0 {
+      if drives & 1 != 0 {
+        drive_names.push(format!("{}:\\", letter as char).into());
+      }
+      drives >>= 1;
+      letter += 1;
+    }
+    drive_names
+  };
+
   match fs::read_dir(path) {
     Ok(paths) => {
       let mut result: Vec<PathBuf> = paths
@@ -580,6 +623,14 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
           db.cmp(&da)
         }
       });
+
+      #[cfg(windows)]
+      let result = {
+        let mut folders = drives;
+        folders.append(&mut result);
+        folders
+      };
+
       Ok(result)
     }
     Err(e) => Err(e),
