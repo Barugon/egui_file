@@ -626,9 +626,10 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
 
       #[cfg(windows)]
       let result = {
-        let mut folders = drives;
-        folders.append(&mut result);
-        folders
+        let mut items = drives;
+        items.reserve(result.len());
+        items.append(&mut result);
+        items
       };
 
       Ok(result)
