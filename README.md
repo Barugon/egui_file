@@ -7,50 +7,54 @@ Taken from the [Dotrix](https://github.com/lowenware/dotrix) project, made into 
 
 ![Screenshot from 2022-08-18 07-41-11](https://user-images.githubusercontent.com/16503728/185423412-32cd1b6d-0c2e-48e9-bc08-77c7278d2f1e.png)
 
-## Example 
+## Example
 
 ````toml
 [dependencies]
-egui_file = "0.2.0"
-eframe = "0.19.0"
+egui_file = "0.3"
+eframe = "0.19"
 
 ````
 
 ````rust
+use eframe::{
+  egui::{CentralPanel, Context},
+  App, Frame,
+};
+use egui_file::FileDialog;
+use std::path::PathBuf;
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Default)]
 pub struct Demo {
-    select_file: bool,
-
-    #[serde(skip)]
-    current: Option<PathBuf>,
-
-    opened_file: Option<PathBuf>,
-
-    #[serde(skip)]
-    open_file_dialog: Option<FileDialog>,
+  opened_file: Option<PathBuf>,
+  open_file_dialog: Option<FileDialog>,
 }
+
 impl App for Demo {
-    fn update(&mut self, ctx: &Context, frame: &mut Frame) {
-        CentralPanel::default().show(ctx, |ui| {
-            if (ui.button("Open")).clicked() {
-                let mut dialog = FileDialog::open_file(self.opened_file.clone());
-                dialog.open();
-                self.open_file_dialog = Some(dialog);
-            }
+  fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
+    CentralPanel::default().show(ctx, |ui| {
+      if (ui.button("Open")).clicked() {
+        let mut dialog = FileDialog::open_file(self.opened_file.clone());
+        dialog.open();
+        self.open_file_dialog = Some(dialog);
+      }
 
-            if let Some(dialog) = &mut self.open_file_dialog {
-                if dialog.show(&ctx).selected() {
-                    if let Some(file) = dialog.path() {
-                        self.opened_file = Some(file);
-                    }
-                }
-            }
-        });
-    }
-
+      if let Some(dialog) = &mut self.open_file_dialog {
+        if dialog.show(&ctx).selected() {
+          if let Some(file) = dialog.path() {
+            self.opened_file = Some(file);
+          }
+        }
+      }
+    });
+  }
 }
 
-
-
+fn main() {
+  eframe::run_native(
+    "File Dialog Demo",
+    eframe::NativeOptions::default(),
+    Box::new(|_cc| Box::new(Demo::default())),
+  );
+}
 ````
