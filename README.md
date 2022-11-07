@@ -40,7 +40,7 @@ impl App for Demo {
       }
 
       if let Some(dialog) = &mut self.open_file_dialog {
-        if dialog.show(&ctx).selected() {
+        if dialog.show(ctx).selected() {
           if let Some(file) = dialog.path() {
             self.opened_file = Some(file);
           }
