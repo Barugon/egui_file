@@ -59,5 +59,3 @@ fn main() {
   );
 }
 ````
-
-<a rel="me" href="https://fosstodon.org/@Barugon">Mastodon</a>
