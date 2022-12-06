@@ -82,7 +82,7 @@ impl FileDialog {
 
   /// Constructs new file dialog. If no `initial_path` is passed,`env::current_dir` is used.
   fn new(dialog_type: DialogType, initial_path: Option<PathBuf>) -> Self {
-    let mut path = initial_path.unwrap_or(env::current_dir().unwrap_or_default());
+    let mut path = initial_path.unwrap_or_else(|| env::current_dir().unwrap_or_default());
     let mut filename_edit = String::new();
 
     if path.is_file() {
@@ -384,10 +384,8 @@ impl FileDialog {
     ui.horizontal(|ui| {
       ui.label("File:");
       ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-        if self.new_folder {
-          if ui.button("New Folder").clicked() {
-            command = Some(Command::CreateDirectory);
-          }
+        if self.new_folder && ui.button("New Folder").clicked() {
+          command = Some(Command::CreateDirectory);
         }
 
         if self.rename {
