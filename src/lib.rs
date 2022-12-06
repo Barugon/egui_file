@@ -2,9 +2,7 @@ use egui::{
   vec2, Align2, Context, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
 };
 use std::{
-  env,
-  ffi::OsString,
-  fs,
+  env, fs,
   io::Error,
   path::{Path, PathBuf},
 };
@@ -53,7 +51,7 @@ pub struct FileDialog {
   current_pos: Option<Pos2>,
   default_size: Vec2,
   anchor: (Align2, Vec2),
-  filter: Option<OsString>,
+  filter: Option<Filter>,
   resizable: bool,
   rename: bool,
   new_folder: bool,
@@ -62,6 +60,9 @@ pub struct FileDialog {
   #[cfg(unix)]
   show_hidden: bool,
 }
+
+/// Function that returns true if the path is accepted.
+pub type Filter = Box<dyn Fn(&Path) -> bool + Send + 'static>;
 
 impl FileDialog {
   /// Create dialog that prompts the user to select a folder.
@@ -122,10 +123,9 @@ impl FileDialog {
     }
   }
 
-  /// Simple single extension filter.
-  pub fn filter(self, filter: String) -> Self {
+  pub fn filter(self, filter: Filter) -> Self {
     Self {
-      filter: Some(filter.into()),
+      filter: Some(filter),
       ..self
     }
   }
@@ -333,7 +333,7 @@ impl FileDialog {
 
               // Filter.
               if let Some(filter) = &self.filter {
-                if path.extension() != Some(filter.as_os_str()) {
+                if !filter(path) {
                   continue;
                 }
               } else if self.dialog_type == DialogType::SelectFolder {
