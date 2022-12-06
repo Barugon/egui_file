@@ -61,7 +61,7 @@ pub struct FileDialog {
   show_hidden: bool,
 }
 
-/// Function that returns true if the path is accepted.
+/// Function that returns `true` if the path is accepted.
 pub type Filter = Box<dyn Fn(&Path) -> bool + Send + 'static>;
 
 impl FileDialog {
