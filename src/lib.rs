@@ -116,50 +116,54 @@ impl FileDialog {
     }
   }
 
-  pub fn anchor(self, align: Align2, offset: impl Into<Vec2>) -> Self {
-    Self {
-      anchor: (align, offset.into()),
-      ..self
-    }
+  /// Set the window anchor.
+  pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
+    self.anchor = (align, offset.into());
+    self
   }
 
-  pub fn filter(self, filter: Filter) -> Self {
-    Self {
-      filter: Some(filter),
-      ..self
-    }
+  /// Set the window position.
+  pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
+    self.current_pos = Some(current_pos.into());
+    self
   }
 
-  pub fn current_pos(self, current_pos: impl Into<Pos2>) -> Self {
-    Self {
-      current_pos: Some(current_pos.into()),
-      ..self
-    }
+  /// Set the window default size.
+  pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
+    self.default_size = default_size.into();
+    self
   }
 
-  pub fn default_size(self, default_size: impl Into<Vec2>) -> Self {
-    Self {
-      default_size: default_size.into(),
-      ..self
-    }
+  /// Enable/disable resizing the window. Default is `true`.
+  pub fn resizable(mut self, resizable: bool) -> Self {
+    self.resizable = resizable;
+    self
   }
 
-  pub fn resizable(self, resizable: bool) -> Self {
-    Self { resizable, ..self }
+  /// Show the Rename button. Default is `true`.
+  pub fn show_rename(mut self, rename: bool) -> Self {
+    self.rename = rename;
+    self
   }
 
-  pub fn show_rename(self, rename: bool) -> Self {
-    Self { rename, ..self }
+  /// Show the New Folder button. Default is `true`.
+  pub fn show_new_folder(mut self, new_folder: bool) -> Self {
+    self.new_folder = new_folder;
+    self
   }
 
-  pub fn show_new_folder(self, new_folder: bool) -> Self {
-    Self { new_folder, ..self }
+  /// Set a function to filter shown files.
+  pub fn filter(mut self, filter: Filter) -> Self {
+    self.filter = Some(filter);
+    self
   }
 
+  /// Get the dialog type.
   pub fn dialog_type(&self) -> DialogType {
     self.dialog_type
   }
 
+  /// Get the window's visibility.
   pub fn visible(&self) -> bool {
     self.state == State::Open
   }
@@ -169,7 +173,7 @@ impl FileDialog {
     self.state = State::Open;
   }
 
-  /// Result.
+  /// Resulting file path.
   pub fn path(&self) -> Option<PathBuf> {
     self.selected_file.clone()
   }
@@ -179,7 +183,7 @@ impl FileDialog {
     self.state
   }
 
-  /// Returns true, if the file was confirmed.
+  /// Returns true, if the file selection was confirmed.
   pub fn selected(&self) -> bool {
     self.state == State::Selected
   }
@@ -248,7 +252,7 @@ impl FileDialog {
     self.state = match self.state {
       State::Open => {
         let mut is_open = true;
-        self.ui(ctx, &mut is_open); // may change self.state
+        self.ui(ctx, &mut is_open);
         if is_open {
           self.state
         } else {
