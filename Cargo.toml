@@ -1,5 +1,8 @@
 [package]
-authors = ["Elias Kartashov <elias@lowenware.com>", "Barugon <barugon@dungeonbox.net>"]
+authors = [
+  "Elias Kartashov <elias@lowenware.com>",
+  "Barugon <barugon@dungeonbox.net>",
+]
 description = "File dialog window for egui"
 edition = "2021"
 keywords = ["file-dialog", "file-picker"]
@@ -9,4 +12,4 @@ repository = "https://github.com/Barugon/egui_file"
 version = "0.4.1"
 
 [dependencies.egui]
-version = "0.19"
+version = "0.20"
