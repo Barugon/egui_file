@@ -1,6 +1,4 @@
-use egui::{
-  vec2, Align2, Context, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
-};
+use egui::{vec2, Align2, Context, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window};
 use std::{
   env, fs,
   io::Error,
@@ -245,18 +243,13 @@ impl FileDialog {
   /// Shows the dialog if it is open. It is also responsible for state management.
   /// Should be called every ui update.
   pub fn show(&mut self, ctx: &Context) -> &Self {
-    if ctx.input().key_pressed(Key::Escape) {
-      self.state = State::Cancelled;
-    }
-
     self.state = match self.state {
       State::Open => {
         let mut is_open = true;
         self.ui(ctx, &mut is_open);
-        if is_open {
-          self.state
-        } else {
-          State::Closed
+        match is_open {
+          true => self.state,
+          false => State::Closed,
         }
       }
       _ => State::Closed,
@@ -353,13 +346,12 @@ impl FileDialog {
             }
 
             ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-              let mut label = String::new();
-              if is_dir {
-                label += "🗀 ";
-              } else {
-                label += "🗋 ";
+              let label = match is_dir {
+                true => "🗀 ",
+                false => "🗋 ",
               }
-              label += filename;
+              .to_string()
+                + filename;
 
               let is_selected = Some(path) == self.selected_file.as_ref();
               let selectable_label = ui.selectable_label(is_selected, label);
@@ -368,11 +360,13 @@ impl FileDialog {
               }
 
               if selectable_label.double_clicked() {
-                if self.dialog_type == DialogType::SaveFile {
-                  command = Some(Command::Save(path.clone()));
-                } else {
-                  command = Some(Command::Open(path.clone()));
-                }
+                command = Some(match self.dialog_type == DialogType::SaveFile {
+                  true => match is_dir {
+                    true => Command::OpenSelected,
+                    false => Command::Save(path.clone()),
+                  },
+                  false => Command::Open(path.clone()),
+                });
               }
             });
           }
@@ -423,11 +417,10 @@ impl FileDialog {
               }
             }
             DialogType::SaveFile => {
-              if path.is_dir() {
-                command = Some(Command::Open(path));
-              } else {
-                command = Some(Command::Save(path));
-              }
+              command = Some(match path.is_dir() {
+                true => Command::Open(path),
+                false => Command::Save(path),
+              });
             }
           }
         }
@@ -498,11 +491,10 @@ impl FileDialog {
         }
         Command::Folder => {
           let path = self.path.join(&self.filename_edit);
-          if path.is_dir() {
-            self.selected_file = Some(path);
-          } else {
-            self.selected_file = Some(self.path.clone());
-          }
+          self.selected_file = Some(match path.is_dir() {
+            true => path,
+            false => self.path.clone(),
+          });
           self.confirm();
         }
         Command::Open(path) => {
@@ -529,10 +521,9 @@ impl FileDialog {
         }
         Command::CreateDirectory => {
           let mut path = self.path.clone();
-          let name = if self.filename_edit.is_empty() {
-            "New folder"
-          } else {
-            &self.filename_edit
+          let name = match self.filename_edit.is_empty() {
+            true => "New folder",
+            false => &self.filename_edit,
           };
           path.push(name);
           match fs::create_dir(&path) {
@@ -560,33 +551,21 @@ impl FileDialog {
 fn is_drive_root(path: &Path) -> bool {
   if let Some(path) = path.to_str() {
     if let Some(ch) = path.chars().next() {
-      if ('A'..='Z').contains(&ch) {
-        if &path[1..] == ":\\" {
-          return true;
-        }
-      }
+      return ('A'..='Z').contains(&ch) && &path[1..] == ":\\";
     }
   }
   false
 }
 
 fn get_file_name(path: &Path) -> &str {
-  if path.is_dir() {
+  match path.is_dir() {
     #[cfg(windows)]
-    if is_drive_root(path) {
-      return path.to_str().unwrap_or_default();
-    }
-    return path
+    true if is_drive_root(path) => path.to_str().unwrap_or_default(),
+    _ => path
       .file_name()
       .and_then(|name| name.to_str())
-      .unwrap_or_default();
-  } else if path.is_file() {
-    return path
-      .file_name()
-      .and_then(|name| name.to_str())
-      .unwrap_or_default();
+      .unwrap_or_default(),
   }
-  Default::default()
 }
 
 #[cfg(windows)]
@@ -598,7 +577,7 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
   #[cfg(windows)]
   let drives = {
     let mut drives = unsafe { GetLogicalDrives() };
-    let mut letter = 'A' as u8;
+    let mut letter = b'A';
     let mut drive_names = Vec::new();
     while drives > 0 {
       if drives & 1 != 0 {
@@ -619,10 +598,9 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
       result.sort_by(|a, b| {
         let da = a.is_dir();
         let db = b.is_dir();
-        if da == db {
-          a.file_name().cmp(&b.file_name())
-        } else {
-          db.cmp(&da)
+        match da == db {
+          true => a.file_name().cmp(&b.file_name()),
+          false => db.cmp(&da),
         }
       });
 
