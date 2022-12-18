@@ -1,4 +1,6 @@
-use egui::{vec2, Align2, Context, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window};
+use egui::{
+  vec2, Align2, Context, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
+};
 use std::{
   env, fs,
   io::Error,
@@ -245,6 +247,10 @@ impl FileDialog {
   pub fn show(&mut self, ctx: &Context) -> &Self {
     self.state = match self.state {
       State::Open => {
+        if ctx.input().key_pressed(Key::Escape) {
+          self.state = State::Cancelled;
+        }
+
         let mut is_open = true;
         self.ui(ctx, &mut is_open);
         match is_open {
