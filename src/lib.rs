@@ -50,6 +50,7 @@ pub struct FileDialog {
 
   current_pos: Option<Pos2>,
   default_size: Vec2,
+  scrollarea_max_height: f32,
   anchor: (Align2, Vec2),
   filter: Option<Filter>,
   resizable: bool,
@@ -105,6 +106,7 @@ impl FileDialog {
 
       current_pos: None,
       default_size: vec2(512.0, 512.0),
+      scrollarea_max_height: 320.0,
       anchor: (Align2::CENTER_CENTER, vec2(0.0, 0.0)),
       filter: None,
       resizable: true,
@@ -131,6 +133,12 @@ impl FileDialog {
   /// Set the window default size.
   pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
     self.default_size = default_size.into();
+    self
+  }
+
+  /// Set the maximum size for the inner [ScrollArea]
+  pub fn scrollarea_max_height(mut self, max: f32) -> Self {
+    self.scrollarea_max_height = max;
     self
   }
 
@@ -322,66 +330,68 @@ impl FileDialog {
 
     // Rows with files
     ui.separator();
-    ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
-      match &self.files {
-        Ok(files) => {
-          for path in files {
-            let is_dir = path.is_dir();
+    ScrollArea::vertical()
+      .max_height(self.scrollarea_max_height)
+      .show(ui, |ui| {
+        match &self.files {
+          Ok(files) => {
+            for path in files {
+              let is_dir = path.is_dir();
 
-            if !is_dir {
-              // Do not show system files
-              if !path.is_file() {
-                continue;
-              }
-
-              // Filter.
-              if let Some(filter) = &self.filter {
-                if !filter(path) {
+              if !is_dir {
+                // Do not show system files
+                if !path.is_file() {
                   continue;
                 }
-              } else if self.dialog_type == DialogType::SelectFolder {
+
+                // Filter.
+                if let Some(filter) = &self.filter {
+                  if !filter(path) {
+                    continue;
+                  }
+                } else if self.dialog_type == DialogType::SelectFolder {
+                  continue;
+                }
+              }
+
+              let filename = get_file_name(path);
+
+              #[cfg(unix)]
+              if !self.show_hidden && filename.starts_with('.') {
                 continue;
               }
+
+              ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
+                let label = match is_dir {
+                  true => "🗀 ",
+                  false => "🗋 ",
+                }
+                .to_string()
+                  + filename;
+
+                let is_selected = Some(path) == self.selected_file.as_ref();
+                let selectable_label = ui.selectable_label(is_selected, label);
+                if selectable_label.clicked() {
+                  command = Some(Command::Select(path.clone()));
+                }
+
+                if selectable_label.double_clicked() {
+                  command = Some(match self.dialog_type == DialogType::SaveFile {
+                    true => match is_dir {
+                      true => Command::OpenSelected,
+                      false => Command::Save(path.clone()),
+                    },
+                    false => Command::Open(path.clone()),
+                  });
+                }
+              });
             }
-
-            let filename = get_file_name(path);
-
-            #[cfg(unix)]
-            if !self.show_hidden && filename.starts_with('.') {
-              continue;
-            }
-
-            ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-              let label = match is_dir {
-                true => "🗀 ",
-                false => "🗋 ",
-              }
-              .to_string()
-                + filename;
-
-              let is_selected = Some(path) == self.selected_file.as_ref();
-              let selectable_label = ui.selectable_label(is_selected, label);
-              if selectable_label.clicked() {
-                command = Some(Command::Select(path.clone()));
-              }
-
-              if selectable_label.double_clicked() {
-                command = Some(match self.dialog_type == DialogType::SaveFile {
-                  true => match is_dir {
-                    true => Command::OpenSelected,
-                    false => Command::Save(path.clone()),
-                  },
-                  false => Command::Open(path.clone()),
-                });
-              }
-            });
+          }
+          Err(e) => {
+            ui.label(e.to_string());
           }
         }
-        Err(e) => {
-          ui.label(e.to_string());
-        }
-      }
-    });
+      });
 
     // Bottom file field
     ui.separator();
