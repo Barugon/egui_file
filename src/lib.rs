@@ -7,10 +7,8 @@ use std::{
   path::{Path, PathBuf},
 };
 
-// #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, )]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-
-/// Dialog state
+/// Dialog state.
 pub enum State {
   /// Is open.
   Open,
@@ -23,6 +21,7 @@ pub enum State {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Dialog type.
 pub enum DialogType {
   SelectFolder,
   OpenFile,
@@ -31,21 +30,21 @@ pub enum DialogType {
 
 /// `egui` component that represents `OpenFileDialog` or `SaveFileDialog`.
 pub struct FileDialog {
-  /// Current opened path
+  /// Current opened path.
   path: PathBuf,
-  /// Editable field with path
+  /// Editable field with path.
   path_edit: String,
 
   /// Selected file path
   selected_file: Option<PathBuf>,
-  /// Editable field with filename
+  /// Editable field with filename.
   filename_edit: String,
 
-  /// Files in directory
+  /// Files in directory.
   files: Result<Vec<PathBuf>, Error>,
-  /// Current dialog state
+  /// Current dialog state.
   state: State,
-  /// Dialog type
+  /// Dialog type.
   dialog_type: DialogType,
 
   current_pos: Option<Pos2>,
@@ -303,7 +302,7 @@ impl FileDialog {
     }
     let mut command: Option<Command> = None;
 
-    // Top directory field with buttons
+    // Top directory field with buttons.
     ui.horizontal(|ui| {
       ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
         let response = ui.button("⬆").on_hover_text_at_pointer("Parent Folder");
@@ -328,7 +327,7 @@ impl FileDialog {
       });
     });
 
-    // Rows with files
+    // Rows with files.
     ui.separator();
     ScrollArea::vertical()
       .max_height(self.scrollarea_max_height)
@@ -339,7 +338,7 @@ impl FileDialog {
               let is_dir = path.is_dir();
 
               if !is_dir {
-                // Do not show system files
+                // Do not show system files.
                 if !path.is_file() {
                   continue;
                 }
@@ -393,7 +392,7 @@ impl FileDialog {
         }
       });
 
-    // Bottom file field
+    // Bottom file field.
     ui.separator();
     ui.horizontal(|ui| {
       ui.label("File:");
@@ -443,7 +442,7 @@ impl FileDialog {
       });
     });
 
-    // Confirm, Cancel buttons
+    // Confirm, Cancel buttons.
     ui.horizontal(|ui| {
       match self.dialog_type {
         DialogType::SelectFolder => {
