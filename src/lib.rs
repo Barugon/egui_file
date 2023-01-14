@@ -64,6 +64,7 @@ pub struct FileDialog {
 }
 
 impl Debug for FileDialog {
+  #[cfg(target_family = "unix")]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
       .field("path", &self.path)
@@ -83,6 +84,28 @@ impl Debug for FileDialog {
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
       .field("show_hidden", &self.show_hidden)
+      .finish()
+  }
+
+  #[cfg(not(target_family = "unix"))]
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("FileDialog")
+      .field("path", &self.path)
+      .field("path_edit", &self.path_edit)
+      .field("selected_file", &self.selected_file)
+      .field("filename_edit", &self.filename_edit)
+      .field("files", &self.files)
+      .field("state", &self.state)
+      .field("dialog_type", &self.dialog_type)
+      .field("current_pos", &self.current_pos)
+      .field("default_size", &self.default_size)
+      .field("scrollarea_max_height", &self.scrollarea_max_height)
+      .field("anchor", &self.anchor)
+      // Closures don't implement std::fmt::Debug.
+      // .field("filter", &self.filter)
+      .field("resizable", &self.resizable)
+      .field("rename", &self.rename)
+      .field("new_folder", &self.new_folder)
       .finish()
   }
 }
