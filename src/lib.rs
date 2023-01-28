@@ -596,7 +596,7 @@ impl FileDialog {
               self.select(Some(path));
               // TODO: scroll to selected?
             }
-            Err(e) => println!("Error while creating directory: {}", e),
+            Err(err) => println!("Error while creating directory: {err}"),
           }
         }
         Command::Rename(from, to) => match fs::rename(from, &to) {
@@ -604,7 +604,7 @@ impl FileDialog {
             self.refresh();
             self.select(Some(to));
           }
-          Err(e) => println!("Error while renaming: {}", e),
+          Err(err) => println!("Error while renaming: {err}"),
         },
       };
     }
