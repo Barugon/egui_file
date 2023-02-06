@@ -52,7 +52,7 @@ pub struct FileDialog {
   current_pos: Option<Pos2>,
   default_size: Vec2,
   scrollarea_max_height: f32,
-  anchor: (Align2, Vec2),
+  anchor: Option<(Align2, Vec2)>,
   filter: Option<Filter>,
   resizable: bool,
   rename: bool,
@@ -155,7 +155,7 @@ impl FileDialog {
       current_pos: None,
       default_size: vec2(512.0, 512.0),
       scrollarea_max_height: 320.0,
-      anchor: (Align2::CENTER_CENTER, vec2(0.0, 0.0)),
+      anchor: None,
       filter: None,
       resizable: true,
       rename: true,
@@ -168,7 +168,7 @@ impl FileDialog {
 
   /// Set the window anchor.
   pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
-    self.anchor = (align, offset.into());
+    self.anchor = Some((align, offset.into()));
     self
   }
 
@@ -321,13 +321,15 @@ impl FileDialog {
   }
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
-    let (align, offset) = self.anchor;
     let mut window = Window::new(RichText::new(self.title()).strong())
       .open(is_open)
       .default_size(self.default_size)
-      .anchor(align, offset)
       .resizable(self.resizable)
       .collapsible(false);
+
+    if let Some((align, offset)) = self.anchor {
+      window = window.anchor(align, offset);
+    }
 
     if let Some(current_pos) = self.current_pos {
       window = window.current_pos(current_pos);
