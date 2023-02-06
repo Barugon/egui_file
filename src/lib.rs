@@ -321,7 +321,6 @@ impl FileDialog {
   }
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
-    let (align, offset) = self.anchor.unwrap();
     let mut window = Window::new(RichText::new(self.title()).strong())
       .open(is_open)
       .default_size(self.default_size)
@@ -329,6 +328,7 @@ impl FileDialog {
       .collapsible(false);
 
     if self.anchor != None {
+      let (align, offset) = self.anchor.unwrap();
       window = window.anchor(align, offset);
     }
 
