@@ -3,6 +3,7 @@ use egui::{
 };
 use std::{
   env,
+  f32::INFINITY,
   fmt::Debug,
   fs,
   io::Error,
@@ -51,6 +52,7 @@ pub struct FileDialog {
 
   current_pos: Option<Pos2>,
   default_size: Vec2,
+  scrollarea_max_height: Option<f32>,
   anchor: Option<(Align2, Vec2)>,
   filter: Option<Filter>,
   resizable: bool,
@@ -75,6 +77,7 @@ impl Debug for FileDialog {
       .field("dialog_type", &self.dialog_type)
       .field("current_pos", &self.current_pos)
       .field("default_size", &self.default_size)
+      .field("scrollarea_max_height", &self.scrollarea_max_height)
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
       // .field("filter", &self.filter)
@@ -152,6 +155,7 @@ impl FileDialog {
 
       current_pos: None,
       default_size: vec2(512.0, 512.0),
+      scrollarea_max_height: None,
       anchor: None,
       filter: None,
       resizable: true,
@@ -178,6 +182,12 @@ impl FileDialog {
   /// Set the window default size.
   pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
     self.default_size = default_size.into();
+    self
+  }
+
+  /// Set the maximum size for the inner [ScrollArea]
+  pub fn scrollarea_max_height(mut self, max: f32) -> Self {
+    self.scrollarea_max_height = Some(max);
     self
   }
 
@@ -369,74 +379,12 @@ impl FileDialog {
           };
         });
       });
-    });
-
-    // Rows with files.
-    egui::CentralPanel::default().show_inside(ui, |ui| {
-      ScrollArea::vertical().show(ui, |ui| {
-        match &self.files {
-          Ok(files) => {
-            for path in files {
-              let is_dir = path.is_dir();
-
-              if !is_dir {
-                // Do not show system files.
-                if !path.is_file() {
-                  continue;
-                }
-
-                // Filter.
-                if let Some(filter) = &self.filter {
-                  if !filter(path) {
-                    continue;
-                  }
-                } else if self.dialog_type == DialogType::SelectFolder {
-                  continue;
-                }
-              }
-
-              let filename = get_file_name(path);
-
-              #[cfg(unix)]
-              if !self.show_hidden && filename.starts_with('.') {
-                continue;
-              }
-
-              ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-                let label = match is_dir {
-                  true => "🗀 ",
-                  false => "🗋 ",
-                }
-                .to_string()
-                  + filename;
-
-                let is_selected = Some(path) == self.selected_file.as_ref();
-                let selectable_label = ui.selectable_label(is_selected, label);
-                if selectable_label.clicked() {
-                  command = Some(Command::Select(path.clone()));
-                }
-
-                if selectable_label.double_clicked() {
-                  command = Some(match self.dialog_type == DialogType::SaveFile {
-                    true => match is_dir {
-                      true => Command::OpenSelected,
-                      false => Command::Save(path.clone()),
-                    },
-                    false => Command::Open(path.clone()),
-                  });
-                }
-              });
-            }
-          }
-          Err(e) => {
-            ui.label(e.to_string());
-          }
-        }
-      });
+      ui.add_space(5.0);
     });
 
     // Bottom file field.
     egui::TopBottomPanel::bottom("bottom_panel").show_inside(ui, |ui| {
+      ui.add_space(5.0);
       ui.horizontal(|ui| {
         ui.label("File:");
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
@@ -541,6 +489,77 @@ impl FileDialog {
           ui.checkbox(&mut self.show_hidden, "Show Hidden");
         });
       });
+    });
+
+    let mut scroll_height = INFINITY;
+    if let Some(scrollarea_max_height) = self.scrollarea_max_height {
+      scroll_height = scrollarea_max_height;
+    }
+
+    // Rows with files.
+    egui::CentralPanel::default().show_inside(ui, |ui| {
+      ScrollArea::vertical()
+        .max_height(scroll_height)
+        .show(ui, |ui| {
+          match &self.files {
+            Ok(files) => {
+              for path in files {
+                let is_dir = path.is_dir();
+
+                if !is_dir {
+                  // Do not show system files.
+                  if !path.is_file() {
+                    continue;
+                  }
+
+                  // Filter.
+                  if let Some(filter) = &self.filter {
+                    if !filter(path) {
+                      continue;
+                    }
+                  } else if self.dialog_type == DialogType::SelectFolder {
+                    continue;
+                  }
+                }
+
+                let filename = get_file_name(path);
+
+                #[cfg(unix)]
+                if !self.show_hidden && filename.starts_with('.') {
+                  continue;
+                }
+
+                ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
+                  let label = match is_dir {
+                    true => "🗀 ",
+                    false => "🗋 ",
+                  }
+                  .to_string()
+                    + filename;
+
+                  let is_selected = Some(path) == self.selected_file.as_ref();
+                  let selectable_label = ui.selectable_label(is_selected, label);
+                  if selectable_label.clicked() {
+                    command = Some(Command::Select(path.clone()));
+                  }
+
+                  if selectable_label.double_clicked() {
+                    command = Some(match self.dialog_type == DialogType::SaveFile {
+                      true => match is_dir {
+                        true => Command::OpenSelected,
+                        false => Command::Save(path.clone()),
+                      },
+                      false => Command::Open(path.clone()),
+                    });
+                  }
+                });
+              }
+            }
+            Err(e) => {
+              ui.label(e.to_string());
+            }
+          }
+        });
     });
 
     if let Some(command) = command {
