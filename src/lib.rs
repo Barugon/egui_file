@@ -327,8 +327,7 @@ impl FileDialog {
       .resizable(self.resizable)
       .collapsible(false);
 
-    if self.anchor != None {
-      let (align, offset) = self.anchor.unwrap();
+    if let Some((align, offset)) = self.anchor {
       window = window.anchor(align, offset);
     }
 
