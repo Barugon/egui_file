@@ -3,6 +3,7 @@ use egui::{
 };
 use std::{
   env,
+  f32::INFINITY,
   fmt::Debug,
   fs,
   io::Error,
@@ -51,7 +52,6 @@ pub struct FileDialog {
 
   current_pos: Option<Pos2>,
   default_size: Vec2,
-  scrollarea_max_height: f32,
   anchor: Option<(Align2, Vec2)>,
   filter: Option<Filter>,
   resizable: bool,
@@ -76,7 +76,6 @@ impl Debug for FileDialog {
       .field("dialog_type", &self.dialog_type)
       .field("current_pos", &self.current_pos)
       .field("default_size", &self.default_size)
-      .field("scrollarea_max_height", &self.scrollarea_max_height)
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
       // .field("filter", &self.filter)
@@ -154,7 +153,6 @@ impl FileDialog {
 
       current_pos: None,
       default_size: vec2(512.0, 512.0),
-      scrollarea_max_height: 320.0,
       anchor: None,
       filter: None,
       resizable: true,
@@ -181,12 +179,6 @@ impl FileDialog {
   /// Set the window default size.
   pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
     self.default_size = default_size.into();
-    self
-  }
-
-  /// Set the maximum size for the inner [ScrollArea]
-  pub fn scrollarea_max_height(mut self, max: f32) -> Self {
-    self.scrollarea_max_height = max;
     self
   }
 
@@ -354,35 +346,145 @@ impl FileDialog {
     let mut command: Option<Command> = None;
 
     // Top directory field with buttons.
-    ui.horizontal(|ui| {
-      ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
-        let response = ui.button("⬆").on_hover_text_at_pointer("Parent Folder");
-        if response.clicked() {
-          command = Some(Command::UpDirectory);
-        }
+    egui::TopBottomPanel::top("egui_file_top").show_inside(ui, |ui| {
+      ui.horizontal(|ui| {
+        ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
+          let response = ui.button("⬆").on_hover_text_at_pointer("Parent Folder");
+          if response.clicked() {
+            command = Some(Command::UpDirectory);
+          }
+        });
+        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+          let response = ui.button("⟲").on_hover_text_at_pointer("Refresh");
+          if response.clicked() {
+            command = Some(Command::Refresh);
+          }
+
+          let response = ui.add_sized(
+            ui.available_size(),
+            TextEdit::singleline(&mut self.path_edit),
+          );
+          if response.lost_focus() {
+            let path = PathBuf::from(&self.path_edit);
+            command = Some(Command::Open(path));
+          };
+        });
       });
-      ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-        let response = ui.button("⟲").on_hover_text_at_pointer("Refresh");
-        if response.clicked() {
-          command = Some(Command::Refresh);
+      ui.add_space(ui.spacing().item_spacing.y);
+    });
+
+    // Bottom file field.
+    egui::TopBottomPanel::bottom("egui_file_bottom").show_inside(ui, |ui| {
+      ui.add_space(ui.spacing().item_spacing.y);
+      ui.horizontal(|ui| {
+        ui.label("File:");
+        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+          if self.new_folder && ui.button("New Folder").clicked() {
+            command = Some(Command::CreateDirectory);
+          }
+
+          if self.rename {
+            ui.add_enabled_ui(self.can_rename(), |ui| {
+              if ui.button("Rename").clicked() {
+                if let Some(from) = self.selected_file.clone() {
+                  let to = from.with_file_name(&self.filename_edit);
+                  command = Some(Command::Rename(from, to));
+                }
+              }
+            });
+          }
+
+          let result = ui.add_sized(
+            ui.available_size(),
+            TextEdit::singleline(&mut self.filename_edit),
+          );
+
+          if result.lost_focus()
+            && result.ctx.input().key_pressed(egui::Key::Enter)
+            && !self.filename_edit.is_empty()
+          {
+            let path = self.path.join(&self.filename_edit);
+            match self.dialog_type {
+              DialogType::SelectFolder => {
+                command = Some(Command::Folder);
+              }
+              DialogType::OpenFile => {
+                if path.exists() {
+                  command = Some(Command::Open(path));
+                }
+              }
+              DialogType::SaveFile => {
+                command = Some(match path.is_dir() {
+                  true => Command::Open(path),
+                  false => Command::Save(path),
+                });
+              }
+            }
+          }
+        });
+      });
+
+      // Confirm, Cancel buttons.
+      ui.horizontal(|ui| {
+        match self.dialog_type {
+          DialogType::SelectFolder => {
+            let should_open = match &self.selected_file {
+              Some(file) => file.is_dir(),
+              None => true,
+            };
+
+            ui.horizontal(|ui| {
+              ui.set_enabled(should_open);
+              if ui.button("Open").clicked() {
+                command = Some(Command::Folder);
+              };
+            });
+          }
+          DialogType::OpenFile => {
+            ui.horizontal(|ui| {
+              ui.set_enabled(self.can_open());
+              if ui.button("Open").clicked() {
+                command = Some(Command::OpenSelected);
+              };
+            });
+          }
+          DialogType::SaveFile => {
+            let should_open_directory = match &self.selected_file {
+              Some(file) => file.is_dir(),
+              None => false,
+            };
+
+            if should_open_directory {
+              if ui.button("Open").clicked() {
+                command = Some(Command::OpenSelected);
+              };
+            } else {
+              ui.horizontal(|ui| {
+                ui.set_enabled(self.can_save());
+                if ui.button("Save").clicked() {
+                  let filename = &self.filename_edit;
+                  let path = self.path.join(filename);
+                  command = Some(Command::Save(path));
+                };
+              });
+            }
+          }
         }
 
-        let response = ui.add_sized(
-          ui.available_size(),
-          TextEdit::singleline(&mut self.path_edit),
-        );
-        if response.lost_focus() {
-          let path = PathBuf::from(&self.path_edit);
-          command = Some(Command::Open(path));
-        };
+        if ui.button("Cancel").clicked() {
+          command = Some(Command::Cancel);
+        }
+
+        #[cfg(unix)]
+        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+          ui.checkbox(&mut self.show_hidden, "Show Hidden");
+        });
       });
     });
 
     // Rows with files.
-    ui.separator();
-    ScrollArea::vertical()
-      .max_height(self.scrollarea_max_height)
-      .show(ui, |ui| {
+    egui::CentralPanel::default().show_inside(ui, |ui| {
+      ScrollArea::vertical().show(ui, |ui| {
         match &self.files {
           Ok(files) => {
             for path in files {
@@ -441,112 +543,6 @@ impl FileDialog {
             ui.label(e.to_string());
           }
         }
-      });
-
-    // Bottom file field.
-    ui.separator();
-    ui.horizontal(|ui| {
-      ui.label("File:");
-      ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-        if self.new_folder && ui.button("New Folder").clicked() {
-          command = Some(Command::CreateDirectory);
-        }
-
-        if self.rename {
-          ui.add_enabled_ui(self.can_rename(), |ui| {
-            if ui.button("Rename").clicked() {
-              if let Some(from) = self.selected_file.clone() {
-                let to = from.with_file_name(&self.filename_edit);
-                command = Some(Command::Rename(from, to));
-              }
-            }
-          });
-        }
-
-        let result = ui.add_sized(
-          ui.available_size(),
-          TextEdit::singleline(&mut self.filename_edit),
-        );
-
-        if result.lost_focus()
-          && result.ctx.input().key_pressed(egui::Key::Enter)
-          && !self.filename_edit.is_empty()
-        {
-          let path = self.path.join(&self.filename_edit);
-          match self.dialog_type {
-            DialogType::SelectFolder => {
-              command = Some(Command::Folder);
-            }
-            DialogType::OpenFile => {
-              if path.exists() {
-                command = Some(Command::Open(path));
-              }
-            }
-            DialogType::SaveFile => {
-              command = Some(match path.is_dir() {
-                true => Command::Open(path),
-                false => Command::Save(path),
-              });
-            }
-          }
-        }
-      });
-    });
-
-    // Confirm, Cancel buttons.
-    ui.horizontal(|ui| {
-      match self.dialog_type {
-        DialogType::SelectFolder => {
-          let should_open = match &self.selected_file {
-            Some(file) => file.is_dir(),
-            None => true,
-          };
-
-          ui.horizontal(|ui| {
-            ui.set_enabled(should_open);
-            if ui.button("Open").clicked() {
-              command = Some(Command::Folder);
-            };
-          });
-        }
-        DialogType::OpenFile => {
-          ui.horizontal(|ui| {
-            ui.set_enabled(self.can_open());
-            if ui.button("Open").clicked() {
-              command = Some(Command::OpenSelected);
-            };
-          });
-        }
-        DialogType::SaveFile => {
-          let should_open_directory = match &self.selected_file {
-            Some(file) => file.is_dir(),
-            None => false,
-          };
-
-          if should_open_directory {
-            if ui.button("Open").clicked() {
-              command = Some(Command::OpenSelected);
-            };
-          } else {
-            ui.horizontal(|ui| {
-              ui.set_enabled(self.can_save());
-              if ui.button("Save").clicked() {
-                let filename = &self.filename_edit;
-                let path = self.path.join(filename);
-                command = Some(Command::Save(path));
-              };
-            });
-          }
-        }
-      }
-
-      if ui.button("Cancel").clicked() {
-        command = Some(Command::Cancel);
-      }
-
-      #[cfg(unix)]
-      ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-        ui.checkbox(&mut self.show_hidden, "Show Hidden");
       });
     });
 
