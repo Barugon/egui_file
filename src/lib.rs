@@ -3,7 +3,6 @@ use egui::{
 };
 use std::{
   env,
-  f32::INFINITY,
   fmt::Debug,
   fs,
   io::Error,
@@ -98,7 +97,6 @@ impl Debug for FileDialog {
       .field("dialog_type", &self.dialog_type)
       .field("current_pos", &self.current_pos)
       .field("default_size", &self.default_size)
-      .field("scrollarea_max_height", &self.scrollarea_max_height)
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
       // .field("filter", &self.filter)
@@ -375,7 +373,7 @@ impl FileDialog {
 
     // Bottom file field.
     egui::TopBottomPanel::bottom("egui_file_bottom").show_inside(ui, |ui| {
-      ui.add_space(ui.spacing().item_spacing.y);
+      ui.add_space(ui.spacing().item_spacing.y * 2.0);
       ui.horizontal(|ui| {
         ui.label("File:");
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
@@ -423,6 +421,8 @@ impl FileDialog {
           }
         });
       });
+
+      ui.add_space(ui.spacing().item_spacing.y);
 
       // Confirm, Cancel buttons.
       ui.horizontal(|ui| {
