@@ -293,7 +293,7 @@ impl FileDialog {
   pub fn show(&mut self, ctx: &Context) -> &Self {
     self.state = match self.state {
       State::Open => {
-        if ctx.input().key_pressed(Key::Escape) {
+        if ctx.input(|state| state.key_pressed(Key::Escape)) {
           self.state = State::Cancelled;
         }
 
@@ -398,7 +398,9 @@ impl FileDialog {
           );
 
           if result.lost_focus()
-            && result.ctx.input().key_pressed(egui::Key::Enter)
+            && result
+              .ctx
+              .input(|state| state.key_pressed(egui::Key::Enter))
             && !self.filename_edit.is_empty()
           {
             let path = self.path.join(&self.filename_edit);
