@@ -673,7 +673,10 @@ impl FileDialog {
         Command::UpDirectory => {
           if self.path.pop() {
             self.refresh();
+            #[cfg(not(windows))]
             self.path_edit.push('/');
+            #[cfg(windows)]
+            self.path_edit.push('\\');
           }
         }
         Command::CreateDirectory => {
@@ -738,7 +741,10 @@ fn create_machine(path: &Path) -> Result<Fst<Vec<u8>>, fst::Error> {
         .map(|entry| {
           let mut file_name = entry.file_name().into_string().unwrap();
           if entry.path().is_dir() {
+            #[cfg(not(windows))]
             file_name.push('/');
+            #[cfg(windows)]
+            file_name.push('\\');
           }
           file_name
         })
