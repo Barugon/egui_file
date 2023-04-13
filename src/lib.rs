@@ -410,7 +410,12 @@ impl FileDialog {
               self.completion.machine = create_machine(if current_path.is_dir() {
                 &current_path
               } else {
-                current_path.parent().unwrap_or_else(|| Path::new("/"))
+                current_path.parent().unwrap_or_else(
+                  #[cfg(windows)]
+                  || Path::new("\\"),
+                  #[cfg(not(windows))]
+                  || Path::new("/"),
+                )
               })
               .unwrap();
             }
