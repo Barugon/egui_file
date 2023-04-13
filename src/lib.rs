@@ -1,6 +1,8 @@
 use egui::{
-  vec2, Align2, Context, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
+  text::CCursor, text_edit::TextEditState, vec2, Align2, Context, Key, Layout, Pos2, RichText,
+  ScrollArea, TextEdit, Ui, Vec2, Window,
 };
+use fst::raw::Fst;
 use std::{
   env,
   fmt::Debug,
@@ -30,6 +32,11 @@ pub enum DialogType {
   SaveFile,
 }
 
+struct CompleterState {
+  folder_depth: usize,
+  machine: Fst<Vec<u8>>,
+}
+
 /// `egui` component that represents `OpenFileDialog` or `SaveFileDialog`.
 pub struct FileDialog {
   /// Current opened path.
@@ -44,6 +51,8 @@ pub struct FileDialog {
 
   /// Files in directory.
   files: Result<Vec<PathBuf>, Error>,
+  /// The file completer
+  completion: CompleterState,
   /// Current dialog state.
   state: State,
   /// Dialog type.
@@ -142,8 +151,13 @@ impl FileDialog {
 
     let path_edit = path.to_str().unwrap_or_default().to_string();
     let files = read_folder(&path);
+    let machine = create_machine(&path).unwrap();
 
     Self {
+      completion: CompleterState {
+        folder_depth: path.components().count(),
+        machine,
+      },
       path,
       path_edit,
       selected_file: None,
@@ -151,7 +165,6 @@ impl FileDialog {
       files,
       state: State::Closed,
       dialog_type,
-
       current_pos: None,
       default_size: vec2(512.0, 512.0),
       scrollarea_max_height: 320.0,
@@ -261,6 +274,8 @@ impl FileDialog {
 
   fn refresh(&mut self) {
     self.files = read_folder(&self.path);
+    self.completion.folder_depth = self.path.components().count();
+    self.completion.machine = create_machine(&self.path).unwrap();
     self.path_edit = String::from(self.path.to_str().unwrap_or_default());
     self.select(None);
   }
@@ -371,6 +386,76 @@ impl FileDialog {
           ui.available_size(),
           TextEdit::singleline(&mut self.path_edit),
         );
+        if response.has_focus() {
+          ui.memory().lock_focus(response.id, true);
+          if ui.input().key_pressed(Key::Tab) {
+            if let Some(mut text_state) = TextEditState::load(ui.ctx(), response.id) {
+              text_state.set_ccursor_range(None);
+              text_state.store(ui.ctx(), response.id);
+            }
+          }
+        }
+        'fst: {
+          if response.changed() {
+            let current_path = Path::new(&self.path_edit);
+            let file_name = current_path
+              .file_name()
+              .unwrap_or_default()
+              .to_str()
+              .unwrap_or_default();
+
+            let depth = current_path.components().count();
+            if depth != self.completion.folder_depth || file_name.is_empty() {
+              self.completion.folder_depth = depth;
+              self.completion.machine = create_machine(if current_path.is_dir() {
+                &current_path
+              } else {
+                current_path.parent().unwrap_or_else(|| Path::new("/"))
+              })
+              .unwrap();
+            }
+
+            if !ui.input().key_pressed(Key::Backspace) {
+              let mut node = self.completion.machine.root();
+
+              for &b in file_name.as_bytes() {
+                node = match node.find_input(b) {
+                  None => break 'fst,
+                  Some(i) => {
+                    let t = node.transition(i);
+                    self.completion.machine.node(t.addr)
+                  }
+                }
+              }
+
+              if !node.is_final() {
+                let ccursor_start = self.path_edit.len();
+                while node.transitions().count() == 1 {
+                  let t = node.transitions().next().unwrap();
+                  self.path_edit.push(t.inp as char);
+                  node = self.completion.machine.node(t.addr);
+                }
+                let ccursor_end = self.path_edit.len();
+                if let Some(mut text_state) = TextEditState::load(ui.ctx(), response.id) {
+                  text_state.set_ccursor_range(Some(egui::text_edit::CCursorRange {
+                    primary: CCursor {
+                      index: ccursor_start,
+                      prefer_next_row: true,
+                    },
+                    secondary: CCursor {
+                      index: ccursor_end,
+                      prefer_next_row: true,
+                    },
+                  }));
+
+                  text_state.store(ui.ctx(), response.id);
+                }
+              } else {
+                break 'fst;
+              }
+            }
+          }
+        }
         if response.lost_focus() {
           let path = PathBuf::from(&self.path_edit);
           command = Some(Command::Open(path));
@@ -583,6 +668,7 @@ impl FileDialog {
         Command::UpDirectory => {
           if self.path.pop() {
             self.refresh();
+            self.path_edit.push('/');
           }
         }
         Command::CreateDirectory => {
@@ -639,6 +725,28 @@ extern "C" {
   pub fn GetLogicalDrives() -> u32;
 }
 
+fn create_machine(path: &Path) -> Result<Fst<Vec<u8>>, fst::Error> {
+  match fs::read_dir(path) {
+    Ok(paths) => {
+      let mut result: Vec<String> = paths
+        .filter_map(|result| result.ok())
+        .map(|entry| {
+          let mut file_name = entry.file_name().into_string().unwrap();
+          if entry.path().is_dir() {
+            file_name.push('/');
+          }
+          file_name
+        })
+        .collect();
+
+      result.sort();
+
+      Fst::from_iter_set(result)
+    }
+    Err(e) => Err(fst::Error::Io(e)),
+  }
+}
+
 fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
   #[cfg(windows)]
   let drives = {
@@ -661,6 +769,7 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
         .filter_map(|result| result.ok())
         .map(|entry| entry.path())
         .collect();
+
       result.sort_by(|a, b| {
         let da = a.is_dir();
         let db = b.is_dir();
