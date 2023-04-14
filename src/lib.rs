@@ -412,7 +412,7 @@ impl FileDialog {
               } else {
                 current_path.parent().unwrap_or_else(
                   #[cfg(windows)]
-                  || Path::new("\\"),
+                  || Path::new("C:\\"),
                   #[cfg(not(windows))]
                   || Path::new("/"),
                 )
