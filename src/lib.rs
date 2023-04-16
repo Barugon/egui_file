@@ -162,6 +162,11 @@ impl FileDialog {
     }
   }
 
+  pub fn default_filename(mut self, filename: impl Into<String>) -> Self {
+    self.filename_edit = filename.into();
+    self
+  }
+
   /// Set the window anchor.
   pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
     self.anchor = Some((align, offset.into()));
