@@ -435,13 +435,7 @@ impl FileDialog {
       ui.horizontal(|ui| {
         match self.dialog_type {
           DialogType::SelectFolder => {
-            let should_open = match &self.selected_file {
-              Some(file) => file.is_dir(),
-              None => true,
-            };
-
             ui.horizontal(|ui| {
-              ui.set_enabled(should_open);
               if ui.button("Open").clicked() {
                 command = Some(Command::Folder);
               };
@@ -559,11 +553,7 @@ impl FileDialog {
           self.select(Some(file));
         }
         Command::Folder => {
-          let path = self.path.join(&self.filename_edit);
-          self.selected_file = Some(match path.is_dir() {
-            true => path,
-            false => self.path.clone(),
-          });
+          self.selected_file = Some(self.get_folder().to_owned());
           self.confirm();
         }
         Command::Open(path) => {
@@ -613,6 +603,17 @@ impl FileDialog {
         },
       };
     }
+  }
+
+  fn get_folder(&self) -> &Path {
+    if let Some(file) = &self.selected_file {
+      if file.is_dir() {
+        return file.as_path();
+      }
+    }
+
+    // No selected file or it's not a folder, so use the current path.
+    &self.path
   }
 }
 
