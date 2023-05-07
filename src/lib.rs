@@ -352,13 +352,13 @@ impl FileDialog {
     egui::TopBottomPanel::top("egui_file_top").show_inside(ui, |ui| {
       ui.horizontal(|ui| {
         ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
-          let response = ui.button("⬆").on_hover_text_at_pointer("Parent Folder");
+          let response = ui.button("⬆").on_hover_text("Parent Folder");
           if response.clicked() {
             command = Some(Command::UpDirectory);
           }
         });
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          let response = ui.button("⟲").on_hover_text_at_pointer("Refresh");
+          let response = ui.button("⟲").on_hover_text("Refresh");
           if response.clicked() {
             command = Some(Command::Refresh);
           }
