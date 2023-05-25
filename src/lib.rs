@@ -108,7 +108,7 @@ impl Debug for FileDialog {
 }
 
 /// Function that returns `true` if the path is accepted.
-pub type Filter = Box<dyn Fn(&Path) -> bool + Send + 'static>;
+pub type Filter = Box<dyn Fn(&Path) -> bool + Send + Sync + 'static>;
 
 impl FileDialog {
   /// Create dialog that prompts the user to select a folder.
