@@ -213,7 +213,7 @@ impl FileDialog {
     self
   }
 
-  pub fn edit_focused(mut self, edit_focus: EditFocus) -> Self {
+  pub fn edit_focus(mut self, edit_focus: EditFocus) -> Self {
     self.edit_focus = Some(edit_focus);
     self
   }
