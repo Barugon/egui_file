@@ -53,6 +53,7 @@ pub struct FileDialog {
   default_size: Vec2,
   anchor: Option<(Align2, Vec2)>,
   filter: Option<Filter>,
+  edit_focus: Option<EditFocus>,
   resizable: bool,
   rename: bool,
   new_folder: bool,
@@ -110,6 +111,8 @@ impl Debug for FileDialog {
 /// Function that returns `true` if the path is accepted.
 pub type Filter = Box<dyn Fn(&Path) -> bool + Send + Sync + 'static>;
 
+pub type EditFocus = Box<dyn Fn(bool) + Send + Sync + 'static>;
+
 impl FileDialog {
   /// Create dialog that prompts the user to select a folder.
   pub fn select_folder(initial_path: Option<PathBuf>) -> Self {
@@ -153,6 +156,7 @@ impl FileDialog {
       default_size: vec2(512.0, 512.0),
       anchor: None,
       filter: None,
+      edit_focus: None,
       resizable: true,
       rename: true,
       new_folder: true,
@@ -206,6 +210,11 @@ impl FileDialog {
   /// Set a function to filter shown files.
   pub fn filter(mut self, filter: Filter) -> Self {
     self.filter = Some(filter);
+    self
+  }
+
+  pub fn edit_focused(mut self, edit_focus: EditFocus) -> Self {
+    self.edit_focus = Some(edit_focus);
     self
   }
 
@@ -368,9 +377,16 @@ impl FileDialog {
             TextEdit::singleline(&mut self.path_edit),
           );
           if response.lost_focus() {
+            if let Some(edit_focus) = &self.edit_focus {
+              edit_focus(false);
+            }
             let path = PathBuf::from(&self.path_edit);
             command = Some(Command::Open(path));
-          };
+          } else if response.gained_focus() {
+            if let Some(edit_focus) = &self.edit_focus {
+              edit_focus(true);
+            }
+          }
         });
       });
       ui.add_space(ui.spacing().item_spacing.y);
@@ -397,33 +413,40 @@ impl FileDialog {
             });
           }
 
-          let result = ui.add_sized(
+          let response = ui.add_sized(
             ui.available_size(),
             TextEdit::singleline(&mut self.filename_edit),
           );
 
-          if result.lost_focus()
-            && result
-              .ctx
-              .input(|state| state.key_pressed(egui::Key::Enter))
-            && !self.filename_edit.is_empty()
-          {
-            let path = self.path.join(&self.filename_edit);
-            match self.dialog_type {
-              DialogType::SelectFolder => {
-                command = Some(Command::Folder);
-              }
-              DialogType::OpenFile => {
-                if path.exists() {
-                  command = Some(Command::Open(path));
+          if response.lost_focus() {
+            if let Some(edit_focus) = &self.edit_focus {
+              edit_focus(false);
+            }
+
+            let ctx = response.ctx;
+            let enter_pressed = ctx.input(|state| state.key_pressed(egui::Key::Enter));
+            if enter_pressed && !self.filename_edit.is_empty() {
+              let path = self.path.join(&self.filename_edit);
+              match self.dialog_type {
+                DialogType::SelectFolder => {
+                  command = Some(Command::Folder);
+                }
+                DialogType::OpenFile => {
+                  if path.exists() {
+                    command = Some(Command::Open(path));
+                  }
+                }
+                DialogType::SaveFile => {
+                  command = Some(match path.is_dir() {
+                    true => Command::Open(path),
+                    false => Command::Save(path),
+                  });
                 }
               }
-              DialogType::SaveFile => {
-                command = Some(match path.is_dir() {
-                  true => Command::Open(path),
-                  false => Command::Save(path),
-                });
-              }
+            }
+          } else if response.gained_focus() {
+            if let Some(edit_focus) = &self.edit_focus {
+              edit_focus(true);
             }
           }
         });
