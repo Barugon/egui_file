@@ -500,39 +500,44 @@ impl FileDialog {
 
     // Rows with files.
     egui::CentralPanel::default().show_inside(ui, |ui| {
-      ScrollArea::vertical().show(ui, |ui| match self.files.as_ref() {
-        Ok(files) => {
-          for path in files {
+      ScrollArea::vertical().show_rows(
+        ui,
+        ui.text_style_height(&egui::TextStyle::Body),
+        self.files.as_ref().map_or(0, |files| files.len()),
+        |ui, range| match self.files.as_ref() {
+          Ok(files) => {
             ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-              let label = match path.is_dir() {
-                true => "🗀 ",
-                false => "🗋 ",
-              }
-              .to_string()
-                + get_file_name(path);
+              for path in files[range].iter() {
+                let label = match path.is_dir() {
+                  true => "🗀 ",
+                  false => "🗋 ",
+                }
+                .to_string()
+                  + get_file_name(path);
 
-              let is_selected = Some(path) == self.selected_file.as_ref();
-              let selectable_label = ui.selectable_label(is_selected, label);
-              if selectable_label.clicked() {
-                command = Some(Command::Select(path.clone()));
-              }
+                let is_selected = Some(path) == self.selected_file.as_ref();
+                let selectable_label = ui.selectable_label(is_selected, label);
+                if selectable_label.clicked() {
+                  command = Some(Command::Select(path.clone()));
+                }
 
-              if selectable_label.double_clicked() {
-                command = Some(match self.dialog_type == DialogType::SaveFile {
-                  true => match path.is_dir() {
-                    true => Command::OpenSelected,
-                    false => Command::Save(path.clone()),
-                  },
-                  false => Command::Open(path.clone()),
-                });
+                if selectable_label.double_clicked() {
+                  command = Some(match self.dialog_type == DialogType::SaveFile {
+                    true => match path.is_dir() {
+                      true => Command::OpenSelected,
+                      false => Command::Save(path.clone()),
+                    },
+                    false => Command::Open(path.clone()),
+                  });
+                }
               }
             });
           }
-        }
-        Err(e) => {
-          ui.label(e.to_string());
-        }
-      });
+          Err(e) => {
+            ui.label(e.to_string());
+          }
+        },
+      );
     });
 
     if let Some(command) = command {
