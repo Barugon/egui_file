@@ -138,7 +138,13 @@ impl FileDialog {
     }
 
     let path_edit = path.to_str().unwrap_or_default().to_string();
-    let files = read_folder(&path);
+    let files = read_folder(
+      &path,
+      None,
+      dialog_type,
+      #[cfg(unix)]
+      false,
+    );
 
     Self {
       path,
@@ -206,6 +212,7 @@ impl FileDialog {
   /// Set a function to filter shown files.
   pub fn filter(mut self, filter: Filter) -> Self {
     self.filter = Some(filter);
+    self.refresh();
     self
   }
 
@@ -255,7 +262,13 @@ impl FileDialog {
   }
 
   fn refresh(&mut self) {
-    self.files = read_folder(&self.path);
+    self.files = read_folder(
+      &self.path,
+      self.filter.as_ref(),
+      self.dialog_type,
+      #[cfg(unix)]
+      self.show_hidden,
+    );
     self.path_edit = String::from(self.path.to_str().unwrap_or_default());
     self.select(None);
   }
@@ -478,71 +491,46 @@ impl FileDialog {
 
         #[cfg(unix)]
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          ui.checkbox(&mut self.show_hidden, "Show Hidden");
+          if ui.checkbox(&mut self.show_hidden, "Show Hidden").changed() {
+            self.refresh();
+          }
         });
       });
     });
 
     // Rows with files.
     egui::CentralPanel::default().show_inside(ui, |ui| {
-      ScrollArea::vertical().show(ui, |ui| {
-        match &self.files {
-          Ok(files) => {
-            for path in files {
-              let is_dir = path.is_dir();
+      ScrollArea::vertical().show(ui, |ui| match self.files.as_ref() {
+        Ok(files) => {
+          for path in files {
+            ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
+              let label = match path.is_dir() {
+                true => "🗀 ",
+                false => "🗋 ",
+              }
+              .to_string()
+                + get_file_name(path);
 
-              if !is_dir {
-                // Do not show system files.
-                if !path.is_file() {
-                  continue;
-                }
-
-                // Filter.
-                if let Some(filter) = &self.filter {
-                  if !filter(path) {
-                    continue;
-                  }
-                } else if self.dialog_type == DialogType::SelectFolder {
-                  continue;
-                }
+              let is_selected = Some(path) == self.selected_file.as_ref();
+              let selectable_label = ui.selectable_label(is_selected, label);
+              if selectable_label.clicked() {
+                command = Some(Command::Select(path.clone()));
               }
 
-              let filename = get_file_name(path);
-
-              #[cfg(unix)]
-              if !self.show_hidden && filename.starts_with('.') {
-                continue;
+              if selectable_label.double_clicked() {
+                command = Some(match self.dialog_type == DialogType::SaveFile {
+                  true => match path.is_dir() {
+                    true => Command::OpenSelected,
+                    false => Command::Save(path.clone()),
+                  },
+                  false => Command::Open(path.clone()),
+                });
               }
-
-              ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-                let label = match is_dir {
-                  true => "🗀 ",
-                  false => "🗋 ",
-                }
-                .to_string()
-                  + filename;
-
-                let is_selected = Some(path) == self.selected_file.as_ref();
-                let selectable_label = ui.selectable_label(is_selected, label);
-                if selectable_label.clicked() {
-                  command = Some(Command::Select(path.clone()));
-                }
-
-                if selectable_label.double_clicked() {
-                  command = Some(match self.dialog_type == DialogType::SaveFile {
-                    true => match is_dir {
-                      true => Command::OpenSelected,
-                      false => Command::Save(path.clone()),
-                    },
-                    false => Command::Open(path.clone()),
-                  });
-                }
-              });
-            }
+            });
           }
-          Err(e) => {
-            ui.label(e.to_string());
-          }
+        }
+        Err(e) => {
+          ui.label(e.to_string());
         }
       });
     });
@@ -643,7 +631,12 @@ extern "C" {
   pub fn GetLogicalDrives() -> u32;
 }
 
-fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
+fn read_folder(
+  path: &Path,
+  filter: Option<&Filter>,
+  dialog_type: DialogType,
+  #[cfg(unix)] show_hidden: bool,
+) -> Result<Vec<PathBuf>, Error> {
   #[cfg(windows)]
   let drives = {
     let mut drives = unsafe { GetLogicalDrives() };
@@ -681,6 +674,31 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
         items.append(&mut result);
         items
       };
+
+      let result = result
+        .into_iter()
+        .filter(|path| {
+          if !path.is_dir() {
+            // Do not show system files.
+            if !path.is_file() {
+              return false;
+            }
+            // Filter.
+            if let Some(filter) = filter.as_ref() {
+              if !filter(path) {
+                return false;
+              }
+            } else if dialog_type == DialogType::SelectFolder {
+              return false;
+            }
+          }
+          #[cfg(unix)]
+          if !show_hidden && get_file_name(path).starts_with('.') {
+            return false;
+          }
+          true
+        })
+        .collect();
 
       Ok(result)
     }
