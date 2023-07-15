@@ -138,20 +138,13 @@ impl FileDialog {
     }
 
     let path_edit = path.to_str().unwrap_or_default().to_string();
-    let files = read_folder(
-      &path,
-      None,
-      dialog_type,
-      #[cfg(unix)]
-      false,
-    );
 
     Self {
       path,
       path_edit,
       selected_file: None,
       filename_edit,
-      files,
+      files: Ok(Vec::new()),
       state: State::Closed,
       dialog_type,
 
@@ -212,7 +205,6 @@ impl FileDialog {
   /// Set a function to filter shown files.
   pub fn filter(mut self, filter: Filter) -> Self {
     self.filter = Some(filter);
-    self.refresh();
     self
   }
 
@@ -229,6 +221,7 @@ impl FileDialog {
   /// Opens the dialog.
   pub fn open(&mut self) {
     self.state = State::Open;
+    self.refresh();
   }
 
   /// Resulting file path.
@@ -645,7 +638,7 @@ fn read_folder(
     drive_names
   };
 
-  fs::read_dir(path).and_then(|paths| {
+  fs::read_dir(path).map(|paths| {
     let mut result: Vec<PathBuf> = paths
       .filter_map(|result| result.ok())
       .map(|entry| entry.path())
@@ -667,7 +660,7 @@ fn read_folder(
       items
     };
 
-    let result = result
+    result
       .into_iter()
       .filter(|path| {
         if !path.is_dir() {
@@ -690,8 +683,6 @@ fn read_folder(
         }
         true
       })
-      .collect();
-
-    Ok(result)
+      .collect()
   })
 }
