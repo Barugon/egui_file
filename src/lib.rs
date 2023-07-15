@@ -138,7 +138,13 @@ impl FileDialog {
     }
 
     let path_edit = path.to_str().unwrap_or_default().to_string();
-    let files = read_folder(&path);
+    let files = read_folder(
+      &path,
+      None,
+      dialog_type,
+      #[cfg(unix)]
+      false,
+    );
 
     Self {
       path,
@@ -206,6 +212,7 @@ impl FileDialog {
   /// Set a function to filter shown files.
   pub fn filter(mut self, filter: Filter) -> Self {
     self.filter = Some(filter);
+    self.refresh();
     self
   }
 
@@ -255,7 +262,13 @@ impl FileDialog {
   }
 
   fn refresh(&mut self) {
-    self.files = read_folder(&self.path);
+    self.files = read_folder(
+      &self.path,
+      self.filter.as_ref(),
+      self.dialog_type,
+      #[cfg(unix)]
+      self.show_hidden,
+    );
     self.path_edit = String::from(self.path.to_str().unwrap_or_default());
     self.select(None);
   }
@@ -410,9 +423,7 @@ impl FileDialog {
           {
             let path = self.path.join(&self.filename_edit);
             match self.dialog_type {
-              DialogType::SelectFolder => {
-                command = Some(Command::Folder);
-              }
+              DialogType::SelectFolder => command = Some(Command::Folder),
               DialogType::OpenFile => {
                 if path.exists() {
                   command = Some(Command::Open(path));
@@ -478,49 +489,29 @@ impl FileDialog {
 
         #[cfg(unix)]
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          ui.checkbox(&mut self.show_hidden, "Show Hidden");
+          if ui.checkbox(&mut self.show_hidden, "Show Hidden").changed() {
+            self.refresh();
+          }
         });
       });
     });
 
     // Rows with files.
     egui::CentralPanel::default().show_inside(ui, |ui| {
-      ScrollArea::vertical().show(ui, |ui| {
-        match &self.files {
+      ScrollArea::vertical().show_rows(
+        ui,
+        ui.text_style_height(&egui::TextStyle::Body),
+        self.files.as_ref().map_or(0, |files| files.len()),
+        |ui, range| match self.files.as_ref() {
           Ok(files) => {
-            for path in files {
-              let is_dir = path.is_dir();
-
-              if !is_dir {
-                // Do not show system files.
-                if !path.is_file() {
-                  continue;
-                }
-
-                // Filter.
-                if let Some(filter) = &self.filter {
-                  if !filter(path) {
-                    continue;
-                  }
-                } else if self.dialog_type == DialogType::SelectFolder {
-                  continue;
-                }
-              }
-
-              let filename = get_file_name(path);
-
-              #[cfg(unix)]
-              if !self.show_hidden && filename.starts_with('.') {
-                continue;
-              }
-
-              ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-                let label = match is_dir {
+            ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
+              for path in files[range].iter() {
+                let label = match path.is_dir() {
                   true => "🗀 ",
                   false => "🗋 ",
                 }
                 .to_string()
-                  + filename;
+                  + get_file_name(path);
 
                 let is_selected = Some(path) == self.selected_file.as_ref();
                 let selectable_label = ui.selectable_label(is_selected, label);
@@ -530,28 +521,25 @@ impl FileDialog {
 
                 if selectable_label.double_clicked() {
                   command = Some(match self.dialog_type == DialogType::SaveFile {
-                    true => match is_dir {
+                    true => match path.is_dir() {
                       true => Command::OpenSelected,
                       false => Command::Save(path.clone()),
                     },
                     false => Command::Open(path.clone()),
                   });
                 }
-              });
-            }
+              }
+            })
+            .response
           }
-          Err(e) => {
-            ui.label(e.to_string());
-          }
-        }
-      });
+          Err(e) => ui.label(e.to_string()),
+        },
+      );
     });
 
     if let Some(command) = command {
       match command {
-        Command::Select(file) => {
-          self.select(Some(file));
-        }
+        Command::Select(file) => self.select(Some(file)),
         Command::Folder => {
           self.selected_file = Some(self.get_folder().to_owned());
           self.confirm();
@@ -560,19 +548,13 @@ impl FileDialog {
           self.select(Some(path));
           self.open_selected();
         }
-        Command::OpenSelected => {
-          self.open_selected();
-        }
+        Command::OpenSelected => self.open_selected(),
         Command::Save(file) => {
           self.selected_file = Some(file);
           self.confirm();
         }
-        Command::Cancel => {
-          self.state = State::Cancelled;
-        }
-        Command::Refresh => {
-          self.refresh();
-        }
+        Command::Cancel => self.state = State::Cancelled,
+        Command::Refresh => self.refresh(),
         Command::UpDirectory => {
           if self.path.pop() {
             self.refresh();
@@ -619,23 +601,22 @@ impl FileDialog {
 
 #[cfg(windows)]
 fn is_drive_root(path: &Path) -> bool {
-  if let Some(path) = path.to_str() {
-    if let Some(ch) = path.chars().next() {
-      return ('A'..='Z').contains(&ch) && &path[1..] == ":\\";
-    }
-  }
-  false
+  path
+    .to_str()
+    .filter(|path| &path[1..] == ":\\")
+    .and_then(|path| path.chars().next())
+    .map_or(false, |ch| ch.is_ascii_uppercase())
 }
 
 fn get_file_name(path: &Path) -> &str {
-  match path.is_dir() {
-    #[cfg(windows)]
-    true if is_drive_root(path) => path.to_str().unwrap_or_default(),
-    _ => path
-      .file_name()
-      .and_then(|name| name.to_str())
-      .unwrap_or_default(),
+  #[cfg(windows)]
+  if path.is_dir() && is_drive_root(path) {
+    return path.to_str().unwrap_or_default();
   }
+  path
+    .file_name()
+    .and_then(|name| name.to_str())
+    .unwrap_or_default()
 }
 
 #[cfg(windows)]
@@ -643,7 +624,12 @@ extern "C" {
   pub fn GetLogicalDrives() -> u32;
 }
 
-fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
+fn read_folder(
+  path: &Path,
+  filter: Option<&Filter>,
+  dialog_type: DialogType,
+  #[cfg(unix)] show_hidden: bool,
+) -> Result<Vec<PathBuf>, Error> {
   #[cfg(windows)]
   let drives = {
     let mut drives = unsafe { GetLogicalDrives() };
@@ -659,31 +645,53 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
     drive_names
   };
 
-  match fs::read_dir(path) {
-    Ok(paths) => {
-      let mut result: Vec<PathBuf> = paths
-        .filter_map(|result| result.ok())
-        .map(|entry| entry.path())
-        .collect();
-      result.sort_by(|a, b| {
-        let da = a.is_dir();
-        let db = b.is_dir();
-        match da == db {
-          true => a.file_name().cmp(&b.file_name()),
-          false => db.cmp(&da),
+  fs::read_dir(path).and_then(|paths| {
+    let mut result: Vec<PathBuf> = paths
+      .filter_map(|result| result.ok())
+      .map(|entry| entry.path())
+      .collect();
+    result.sort_by(|a, b| {
+      let da = a.is_dir();
+      let db = b.is_dir();
+      match da == db {
+        true => a.file_name().cmp(&b.file_name()),
+        false => db.cmp(&da),
+      }
+    });
+
+    #[cfg(windows)]
+    let result = {
+      let mut items = drives;
+      items.reserve(result.len());
+      items.append(&mut result);
+      items
+    };
+
+    let result = result
+      .into_iter()
+      .filter(|path| {
+        if !path.is_dir() {
+          // Do not show system files.
+          if !path.is_file() {
+            return false;
+          }
+          // Filter.
+          if let Some(filter) = filter.as_ref() {
+            if !filter(path) {
+              return false;
+            }
+          } else if dialog_type == DialogType::SelectFolder {
+            return false;
+          }
         }
-      });
+        #[cfg(unix)]
+        if !show_hidden && get_file_name(path).starts_with('.') {
+          return false;
+        }
+        true
+      })
+      .collect();
 
-      #[cfg(windows)]
-      let result = {
-        let mut items = drives;
-        items.reserve(result.len());
-        items.append(&mut result);
-        items
-      };
-
-      Ok(result)
-    }
-    Err(e) => Err(e),
-  }
+    Ok(result)
+  })
 }
