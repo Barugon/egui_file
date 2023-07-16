@@ -225,8 +225,8 @@ impl FileDialog {
   }
 
   /// Resulting file path.
-  pub fn path(&self) -> Option<PathBuf> {
-    self.selected_file.clone()
+  pub fn path(&self) -> Option<&Path> {
+    self.selected_file.as_deref()
   }
 
   /// Dialog state.
