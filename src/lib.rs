@@ -229,6 +229,12 @@ impl FileDialog {
     self.selected_file.as_deref()
   }
 
+  /// Set the dialog's current opened path
+  pub fn set_path(&mut self, path: impl Into<PathBuf>) {
+    self.path = path.into();
+    self.refresh();
+  }
+
   /// Dialog state.
   pub fn state(&self) -> State {
     self.state
@@ -242,8 +248,7 @@ impl FileDialog {
   fn open_selected(&mut self) {
     if let Some(path) = &self.selected_file {
       if path.is_dir() {
-        self.path = path.clone();
-        self.refresh();
+        self.set_path(path.clone())
       } else if path.is_file() && self.dialog_type == DialogType::OpenFile {
         self.confirm();
       }
