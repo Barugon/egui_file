@@ -190,7 +190,7 @@ impl FileDialog {
   }
 
   /// Set the window ID.
-  pub fn id(mut self, id: Id) -> Self {
+  pub fn id(mut self, id: impl Into<Id>) -> Self {
     self.id = Some(id.into());
     self
   }
