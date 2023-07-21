@@ -1,5 +1,5 @@
 use egui::{
-  vec2, Align2, Context, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
+  vec2, Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
 };
 use std::{
   env,
@@ -51,6 +51,7 @@ pub struct FileDialog {
   /// Dialog type.
   dialog_type: DialogType,
 
+  id: Option<Id>,
   current_pos: Option<Pos2>,
   default_size: Vec2,
   anchor: Option<(Align2, Vec2)>,
@@ -156,6 +157,7 @@ impl FileDialog {
       state: State::Closed,
       dialog_type,
 
+      id: None,
       current_pos: None,
       default_size: vec2(512.0, 512.0),
       anchor: None,
@@ -182,6 +184,11 @@ impl FileDialog {
     }
     .to_string()
       + title;
+    self
+  }
+
+  pub fn id(mut self, id: Id) -> Self {
+    self.id = Some(id);
     self
   }
 
@@ -343,6 +350,10 @@ impl FileDialog {
       .default_size(self.default_size)
       .resizable(self.resizable)
       .collapsible(false);
+
+    if let Some(id) = self.id {
+      window = window.id(id);
+    }
 
     if let Some((align, offset)) = self.anchor {
       window = window.anchor(align, offset);
