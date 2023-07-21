@@ -41,6 +41,8 @@ pub struct FileDialog {
   selected_file: Option<PathBuf>,
   /// Editable field with filename.
   filename_edit: String,
+  /// Dialog title text
+  title: String,
 
   /// Files in directory.
   files: Result<Vec<PathBuf>, Error>,
@@ -144,6 +146,12 @@ impl FileDialog {
       path_edit,
       selected_file: None,
       filename_edit,
+      title: match dialog_type {
+        DialogType::SelectFolder => "📁  Select Folder",
+        DialogType::OpenFile => "📂  Open File",
+        DialogType::SaveFile => "💾  Save File",
+      }
+      .to_string(),
       files: Ok(Vec::new()),
       state: State::Closed,
       dialog_type,
@@ -163,6 +171,17 @@ impl FileDialog {
 
   pub fn default_filename(mut self, filename: impl Into<String>) -> Self {
     self.filename_edit = filename.into();
+    self
+  }
+
+  pub fn title(mut self, title: &str) -> Self {
+    self.title = match self.dialog_type {
+      DialogType::SelectFolder => "📁  ",
+      DialogType::OpenFile => "📂  ",
+      DialogType::SaveFile => "💾  ",
+    }
+    .to_string()
+      + title;
     self
   }
 
@@ -225,8 +244,14 @@ impl FileDialog {
   }
 
   /// Resulting file path.
-  pub fn path(&self) -> Option<PathBuf> {
-    self.selected_file.clone()
+  pub fn path(&self) -> Option<&Path> {
+    self.selected_file.as_deref()
+  }
+
+  /// Set the dialog's current opened path
+  pub fn set_path(&mut self, path: impl Into<PathBuf>) {
+    self.path = path.into();
+    self.refresh();
   }
 
   /// Dialog state.
@@ -242,8 +267,7 @@ impl FileDialog {
   fn open_selected(&mut self) {
     if let Some(path) = &self.selected_file {
       if path.is_dir() {
-        self.path = path.clone();
-        self.refresh();
+        self.set_path(path.clone())
       } else if path.is_file() && self.dialog_type == DialogType::OpenFile {
         self.confirm();
       }
@@ -291,14 +315,6 @@ impl FileDialog {
     false
   }
 
-  fn title(&self) -> &str {
-    match self.dialog_type {
-      DialogType::SelectFolder => "📁  Select Folder",
-      DialogType::OpenFile => "📂  Open File",
-      DialogType::SaveFile => "💾  Save File",
-    }
-  }
-
   /// Shows the dialog if it is open. It is also responsible for state management.
   /// Should be called every ui update.
   pub fn show(&mut self, ctx: &Context) -> &Self {
@@ -322,7 +338,7 @@ impl FileDialog {
   }
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
-    let mut window = Window::new(RichText::new(self.title()).strong())
+    let mut window = Window::new(RichText::new(&self.title).strong())
       .open(is_open)
       .default_size(self.default_size)
       .resizable(self.resizable)
