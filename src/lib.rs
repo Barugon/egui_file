@@ -171,11 +171,13 @@ impl FileDialog {
     }
   }
 
+  /// Set the default file name.
   pub fn default_filename(mut self, filename: impl Into<String>) -> Self {
     self.filename_edit = filename.into();
     self
   }
 
+  /// Set the window title text.
   pub fn title(mut self, title: &str) -> Self {
     self.title = match self.dialog_type {
       DialogType::SelectFolder => "📁  ",
@@ -187,8 +189,9 @@ impl FileDialog {
     self
   }
 
+  /// Set the window ID.
   pub fn id(mut self, id: Id) -> Self {
-    self.id = Some(id);
+    self.id = Some(id.into());
     self
   }
 
