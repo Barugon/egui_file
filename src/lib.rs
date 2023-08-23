@@ -1,5 +1,5 @@
 use egui::{
-  vec2, Align2, Context, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
+  vec2, Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
 };
 use std::{
   env,
@@ -41,6 +41,8 @@ pub struct FileDialog {
   selected_file: Option<PathBuf>,
   /// Editable field with filename.
   filename_edit: String,
+  /// Dialog title text
+  title: String,
 
   /// Files in directory.
   files: Result<Vec<PathBuf>, Error>,
@@ -49,6 +51,7 @@ pub struct FileDialog {
   /// Dialog type.
   dialog_type: DialogType,
 
+  id: Option<Id>,
   current_pos: Option<Pos2>,
   default_size: Vec2,
   anchor: Option<(Align2, Vec2)>,
@@ -141,23 +144,23 @@ impl FileDialog {
     }
 
     let path_edit = path.to_str().unwrap_or_default().to_string();
-    let files = read_folder(
-      &path,
-      None,
-      dialog_type,
-      #[cfg(unix)]
-      false,
-    );
 
     Self {
       path,
       path_edit,
       selected_file: None,
       filename_edit,
-      files,
+      title: match dialog_type {
+        DialogType::SelectFolder => "📁  Select Folder",
+        DialogType::OpenFile => "📂  Open File",
+        DialogType::SaveFile => "💾  Save File",
+      }
+      .to_string(),
+      files: Ok(Vec::new()),
       state: State::Closed,
       dialog_type,
 
+      id: None,
       current_pos: None,
       default_size: vec2(512.0, 512.0),
       anchor: None,
@@ -172,8 +175,27 @@ impl FileDialog {
     }
   }
 
+  /// Set the default file name.
   pub fn default_filename(mut self, filename: impl Into<String>) -> Self {
     self.filename_edit = filename.into();
+    self
+  }
+
+  /// Set the window title text.
+  pub fn title(mut self, title: &str) -> Self {
+    self.title = match self.dialog_type {
+      DialogType::SelectFolder => "📁  ",
+      DialogType::OpenFile => "📂  ",
+      DialogType::SaveFile => "💾  ",
+    }
+    .to_string()
+      + title;
+    self
+  }
+
+  /// Set the window ID.
+  pub fn id(mut self, id: impl Into<Id>) -> Self {
+    self.id = Some(id.into());
     self
   }
 
@@ -216,7 +238,6 @@ impl FileDialog {
   /// Set a function to filter shown files.
   pub fn filter(mut self, filter: Filter) -> Self {
     self.filter = Some(filter);
-    self.refresh();
     self
   }
 
@@ -238,11 +259,18 @@ impl FileDialog {
   /// Opens the dialog.
   pub fn open(&mut self) {
     self.state = State::Open;
+    self.refresh();
   }
 
   /// Resulting file path.
-  pub fn path(&self) -> Option<PathBuf> {
-    self.selected_file.clone()
+  pub fn path(&self) -> Option<&Path> {
+    self.selected_file.as_deref()
+  }
+
+  /// Set the dialog's current opened path
+  pub fn set_path(&mut self, path: impl Into<PathBuf>) {
+    self.path = path.into();
+    self.refresh();
   }
 
   /// Dialog state.
@@ -258,8 +286,7 @@ impl FileDialog {
   fn open_selected(&mut self) {
     if let Some(path) = &self.selected_file {
       if path.is_dir() {
-        self.path = path.clone();
-        self.refresh();
+        self.set_path(path.clone())
       } else if path.is_file() && self.dialog_type == DialogType::OpenFile {
         self.confirm();
       }
@@ -307,14 +334,6 @@ impl FileDialog {
     false
   }
 
-  fn title(&self) -> &str {
-    match self.dialog_type {
-      DialogType::SelectFolder => "📁  Select Folder",
-      DialogType::OpenFile => "📂  Open File",
-      DialogType::SaveFile => "💾  Save File",
-    }
-  }
-
   /// Shows the dialog if it is open. It is also responsible for state management.
   /// Should be called every ui update.
   pub fn show(&mut self, ctx: &Context) -> &Self {
@@ -338,11 +357,15 @@ impl FileDialog {
   }
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
-    let mut window = Window::new(RichText::new(self.title()).strong())
+    let mut window = Window::new(RichText::new(&self.title).strong())
       .open(is_open)
       .default_size(self.default_size)
       .resizable(self.resizable)
       .collapsible(false);
+
+    if let Some(id) = self.id {
+      window = window.id(id);
+    }
 
     if let Some((align, offset)) = self.anchor {
       window = window.anchor(align, offset);
@@ -668,7 +691,7 @@ fn read_folder(
     drive_names
   };
 
-  fs::read_dir(path).and_then(|paths| {
+  fs::read_dir(path).map(|paths| {
     let mut result: Vec<PathBuf> = paths
       .filter_map(|result| result.ok())
       .map(|entry| entry.path())
@@ -690,7 +713,7 @@ fn read_folder(
       items
     };
 
-    let result = result
+    result
       .into_iter()
       .filter(|path| {
         if !path.is_dir() {
@@ -713,8 +736,6 @@ fn read_folder(
         }
         true
       })
-      .collect();
-
-    Ok(result)
+      .collect()
   })
 }
