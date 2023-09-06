@@ -241,6 +241,7 @@ impl FileDialog {
     self
   }
 
+  /// Calls the `edit_focus` function when a text edit gains or looses focus.
   pub fn edit_focus(mut self, edit_focus: EditFocus) -> Self {
     self.edit_focus = Some(edit_focus);
     self
@@ -691,12 +692,12 @@ fn read_folder(
     drive_names
   };
 
-  fs::read_dir(path).map(|paths| {
-    let mut result: Vec<PathBuf> = paths
+  fs::read_dir(path).map(|entries| {
+    let mut paths: Vec<PathBuf> = entries
       .filter_map(|result| result.ok())
       .map(|entry| entry.path())
       .collect();
-    result.sort_by(|a, b| {
+    paths.sort_by(|a, b| {
       let da = a.is_dir();
       let db = b.is_dir();
       match da == db {
@@ -706,14 +707,14 @@ fn read_folder(
     });
 
     #[cfg(windows)]
-    let result = {
+    let paths = {
       let mut items = drives;
-      items.reserve(result.len());
-      items.append(&mut result);
+      items.reserve(paths.len());
+      items.append(&mut paths);
       items
     };
 
-    result
+    paths
       .into_iter()
       .filter(|path| {
         if !path.is_dir() {
