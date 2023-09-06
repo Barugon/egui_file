@@ -629,7 +629,7 @@ impl FileDialog {
       let mut letter = b'A';
       let mut drive_names = Vec::new();
       while drives > 0 {
-        if self.show_drives{
+        if !self.show_drives{
           break;
         }
         if drives & 1 != 0 {
