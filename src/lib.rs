@@ -59,6 +59,8 @@ pub struct FileDialog {
   resizable: bool,
   rename: bool,
   new_folder: bool,
+  #[cfg(windows)]
+  show_drives: bool,
 
   // Show hidden files on unix systems.
   #[cfg(unix)]
@@ -69,44 +71,44 @@ impl Debug for FileDialog {
   #[cfg(target_family = "unix")]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
-      .field("path", &self.path)
-      .field("path_edit", &self.path_edit)
-      .field("selected_file", &self.selected_file)
-      .field("filename_edit", &self.filename_edit)
-      .field("files", &self.files)
-      .field("state", &self.state)
-      .field("dialog_type", &self.dialog_type)
-      .field("current_pos", &self.current_pos)
-      .field("default_size", &self.default_size)
-      .field("anchor", &self.anchor)
-      // Closures don't implement std::fmt::Debug.
-      // .field("filter", &self.filter)
-      .field("resizable", &self.resizable)
-      .field("rename", &self.rename)
-      .field("new_folder", &self.new_folder)
-      .field("show_hidden", &self.show_hidden)
-      .finish()
+        .field("path", &self.path)
+        .field("path_edit", &self.path_edit)
+        .field("selected_file", &self.selected_file)
+        .field("filename_edit", &self.filename_edit)
+        .field("files", &self.files)
+        .field("state", &self.state)
+        .field("dialog_type", &self.dialog_type)
+        .field("current_pos", &self.current_pos)
+        .field("default_size", &self.default_size)
+        .field("anchor", &self.anchor)
+        // Closures don't implement std::fmt::Debug.
+        // .field("filter", &self.filter)
+        .field("resizable", &self.resizable)
+        .field("rename", &self.rename)
+        .field("new_folder", &self.new_folder)
+        .field("show_hidden", &self.show_hidden)
+        .finish()
   }
 
   #[cfg(not(target_family = "unix"))]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
-      .field("path", &self.path)
-      .field("path_edit", &self.path_edit)
-      .field("selected_file", &self.selected_file)
-      .field("filename_edit", &self.filename_edit)
-      .field("files", &self.files)
-      .field("state", &self.state)
-      .field("dialog_type", &self.dialog_type)
-      .field("current_pos", &self.current_pos)
-      .field("default_size", &self.default_size)
-      .field("anchor", &self.anchor)
-      // Closures don't implement std::fmt::Debug.
-      // .field("filter", &self.filter)
-      .field("resizable", &self.resizable)
-      .field("rename", &self.rename)
-      .field("new_folder", &self.new_folder)
-      .finish()
+        .field("path", &self.path)
+        .field("path_edit", &self.path_edit)
+        .field("selected_file", &self.selected_file)
+        .field("filename_edit", &self.filename_edit)
+        .field("files", &self.files)
+        .field("state", &self.state)
+        .field("dialog_type", &self.dialog_type)
+        .field("current_pos", &self.current_pos)
+        .field("default_size", &self.default_size)
+        .field("anchor", &self.anchor)
+        // Closures don't implement std::fmt::Debug.
+        // .field("filter", &self.filter)
+        .field("resizable", &self.resizable)
+        .field("rename", &self.rename)
+        .field("new_folder", &self.new_folder)
+        .finish()
   }
 }
 
@@ -147,12 +149,13 @@ impl FileDialog {
       path_edit,
       selected_file: None,
       filename_edit,
+      show_drives: true,
       title: match dialog_type {
         DialogType::SelectFolder => "📁  Select Folder",
         DialogType::OpenFile => "📂  Open File",
         DialogType::SaveFile => "💾  Save File",
       }
-      .to_string(),
+          .to_string(),
       files: Ok(Vec::new()),
       state: State::Closed,
       dialog_type,
@@ -184,8 +187,8 @@ impl FileDialog {
       DialogType::OpenFile => "📂  ",
       DialogType::SaveFile => "💾  ",
     }
-    .to_string()
-      + title;
+        .to_string()
+        + title;
     self
   }
 
@@ -228,6 +231,11 @@ impl FileDialog {
   /// Show the New Folder button. Default is `true`.
   pub fn show_new_folder(mut self, new_folder: bool) -> Self {
     self.new_folder = new_folder;
+    self
+  }
+  #[cfg(windows)]
+  pub fn show_drives(mut self, drives: bool) -> Self {
+    self.show_drives = drives;
     self
   }
 
@@ -289,13 +297,7 @@ impl FileDialog {
   }
 
   fn refresh(&mut self) {
-    self.files = read_folder(
-      &self.path,
-      self.filter.as_ref(),
-      self.dialog_type,
-      #[cfg(unix)]
-      self.show_hidden,
-    );
+    self.files = self.read_folder();
     self.path_edit = String::from(self.path.to_str().unwrap_or_default());
     self.select(None);
   }
@@ -349,10 +351,10 @@ impl FileDialog {
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
     let mut window = Window::new(RichText::new(&self.title).strong())
-      .open(is_open)
-      .default_size(self.default_size)
-      .resizable(self.resizable)
-      .collapsible(false);
+        .open(is_open)
+        .default_size(self.default_size)
+        .resizable(self.resizable)
+        .collapsible(false);
 
     if let Some(id) = self.id {
       window = window.id(id);
@@ -439,10 +441,10 @@ impl FileDialog {
           );
 
           if result.lost_focus()
-            && result
+              && result
               .ctx
               .input(|state| state.key_pressed(egui::Key::Enter))
-            && !self.filename_edit.is_empty()
+              && !self.filename_edit.is_empty()
           {
             let path = self.path.join(&self.filename_edit);
             match self.dialog_type {
@@ -533,8 +535,8 @@ impl FileDialog {
                   true => "🗀 ",
                   false => "🗋 ",
                 }
-                .to_string()
-                  + get_file_name(path);
+                    .to_string()
+                    + get_file_name(path);
 
                 let is_selected = Some(path) == self.selected_file.as_ref();
                 let selectable_label = ui.selectable_label(is_selected, label);
@@ -553,7 +555,7 @@ impl FileDialog {
                 }
               }
             })
-            .response
+                .response
           }
           Err(e) => ui.label(e.to_string()),
         },
@@ -620,15 +622,83 @@ impl FileDialog {
     // No selected file or it's not a folder, so use the current path.
     &self.path
   }
+  fn read_folder(&self) -> Result<Vec<PathBuf>, Error> {
+    #[cfg(windows)]
+        let drives = {
+      let mut drives = unsafe { GetLogicalDrives() };
+      let mut letter = b'A';
+      let mut drive_names = Vec::new();
+      while drives > 0 {
+        if self.show_drives{
+          break;
+        }
+        if drives & 1 != 0 {
+          drive_names.push(format!("{}:\\", letter as char).into());
+        }
+        drives >>= 1;
+        letter += 1;
+      }
+      drive_names
+    };
+
+    fs::read_dir(&self.path).map(|paths| {
+      let mut result: Vec<PathBuf> = paths
+          .filter_map(|result| result.ok())
+          .map(|entry| entry.path())
+          .collect();
+      result.sort_by(|a, b| {
+        let da = a.is_dir();
+        let db = b.is_dir();
+        match da == db {
+          true => a.file_name().cmp(&b.file_name()),
+          false => db.cmp(&da),
+        }
+      });
+
+      #[cfg(windows)]
+          let result = {
+        let mut items = drives;
+        items.reserve(result.len());
+        items.append(&mut result);
+        items
+      };
+
+      result
+          .into_iter()
+          .filter(|path| {
+            if !path.is_dir() {
+              // Do not show system files.
+              if !path.is_file() {
+                return false;
+              }
+              // Filter.
+              if let Some(filter) = self.filter.as_ref() {
+                if !filter(path) {
+                  return false;
+                }
+              } else if self.dialog_type == DialogType::SelectFolder {
+                return false;
+              }
+            }
+
+            #[cfg(unix)]
+            if !self.show_hidden && get_file_name(path).starts_with('.') {
+              return false;
+            }
+            true
+          })
+          .collect()
+    })
+  }
 }
 
 #[cfg(windows)]
 fn is_drive_root(path: &Path) -> bool {
   path
-    .to_str()
-    .filter(|path| &path[1..] == ":\\")
-    .and_then(|path| path.chars().next())
-    .map_or(false, |ch| ch.is_ascii_uppercase())
+      .to_str()
+      .filter(|path| &path[1..] == ":\\")
+      .and_then(|path| path.chars().next())
+      .map_or(false, |ch| ch.is_ascii_uppercase())
 }
 
 fn get_file_name(path: &Path) -> &str {
@@ -637,82 +707,12 @@ fn get_file_name(path: &Path) -> &str {
     return path.to_str().unwrap_or_default();
   }
   path
-    .file_name()
-    .and_then(|name| name.to_str())
-    .unwrap_or_default()
+      .file_name()
+      .and_then(|name| name.to_str())
+      .unwrap_or_default()
 }
 
 #[cfg(windows)]
 extern "C" {
   pub fn GetLogicalDrives() -> u32;
-}
-
-fn read_folder(
-  path: &Path,
-  filter: Option<&Filter>,
-  dialog_type: DialogType,
-  #[cfg(unix)] show_hidden: bool,
-) -> Result<Vec<PathBuf>, Error> {
-  #[cfg(windows)]
-  let drives = {
-    let mut drives = unsafe { GetLogicalDrives() };
-    let mut letter = b'A';
-    let mut drive_names = Vec::new();
-    while drives > 0 {
-      if drives & 1 != 0 {
-        drive_names.push(format!("{}:\\", letter as char).into());
-      }
-      drives >>= 1;
-      letter += 1;
-    }
-    drive_names
-  };
-
-  fs::read_dir(path).map(|paths| {
-    let mut result: Vec<PathBuf> = paths
-      .filter_map(|result| result.ok())
-      .map(|entry| entry.path())
-      .collect();
-    result.sort_by(|a, b| {
-      let da = a.is_dir();
-      let db = b.is_dir();
-      match da == db {
-        true => a.file_name().cmp(&b.file_name()),
-        false => db.cmp(&da),
-      }
-    });
-
-    #[cfg(windows)]
-    let result = {
-      let mut items = drives;
-      items.reserve(result.len());
-      items.append(&mut result);
-      items
-    };
-
-    result
-      .into_iter()
-      .filter(|path| {
-        if !path.is_dir() {
-          // Do not show system files.
-          if !path.is_file() {
-            return false;
-          }
-          // Filter.
-          if let Some(filter) = filter.as_ref() {
-            if !filter(path) {
-              return false;
-            }
-          } else if dialog_type == DialogType::SelectFolder {
-            return false;
-          }
-        }
-        #[cfg(unix)]
-        if !show_hidden && get_file_name(path).starts_with('.') {
-          return false;
-        }
-        true
-      })
-      .collect()
-  })
 }
