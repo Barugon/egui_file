@@ -201,6 +201,7 @@ impl FileDialog {
 
       #[cfg(windows)]
       show_drives: true,
+
       #[cfg(unix)]
       show_hidden: false,
     }
@@ -266,6 +267,7 @@ impl FileDialog {
     self
   }
 
+  /// Show the mapped drives on Windows. Default is `true`.
   #[cfg(windows)]
   pub fn show_drives(mut self, drives: bool) -> Self {
     self.show_drives = drives;
