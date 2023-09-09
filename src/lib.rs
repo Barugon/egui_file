@@ -61,7 +61,11 @@ pub struct FileDialog {
   rename: bool,
   new_folder: bool,
 
-  // Show hidden files on unix systems.
+  /// Show drive letters on Windows.
+  #[cfg(windows)]
+  show_drives: bool,
+
+  /// Show hidden files on unix systems.
   #[cfg(unix)]
   show_hidden: bool,
 }
@@ -89,7 +93,29 @@ impl Debug for FileDialog {
       .finish()
   }
 
-  #[cfg(not(target_family = "unix"))]
+  #[cfg(target_family = "windows")]
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("FileDialog")
+      .field("path", &self.path)
+      .field("path_edit", &self.path_edit)
+      .field("selected_file", &self.selected_file)
+      .field("filename_edit", &self.filename_edit)
+      .field("files", &self.files)
+      .field("state", &self.state)
+      .field("dialog_type", &self.dialog_type)
+      .field("current_pos", &self.current_pos)
+      .field("default_size", &self.default_size)
+      .field("anchor", &self.anchor)
+      // Closures don't implement std::fmt::Debug.
+      // .field("filter", &self.filter)
+      .field("resizable", &self.resizable)
+      .field("rename", &self.rename)
+      .field("new_folder", &self.new_folder)
+      .field("show_drives", &self.show_drives)
+      .finish()
+  }
+
+  #[cfg(all(not(target_family = "unix"), not(target_family = "windows")))]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
       .field("path", &self.path)
@@ -170,6 +196,8 @@ impl FileDialog {
       rename: true,
       new_folder: true,
 
+      #[cfg(windows)]
+      show_drives: true,
       #[cfg(unix)]
       show_hidden: false,
     }
@@ -232,6 +260,12 @@ impl FileDialog {
   /// Show the New Folder button. Default is `true`.
   pub fn show_new_folder(mut self, new_folder: bool) -> Self {
     self.new_folder = new_folder;
+    self
+  }
+
+  #[cfg(windows)]
+  pub fn show_drives(mut self, drives: bool) -> Self {
+    self.show_drives = drives;
     self
   }
 
@@ -299,13 +333,7 @@ impl FileDialog {
   }
 
   fn refresh(&mut self) {
-    self.files = read_folder(
-      &self.path,
-      self.filter.as_ref(),
-      self.dialog_type,
-      #[cfg(unix)]
-      self.show_hidden,
-    );
+    self.files = self.read_folder();
     self.path_edit = String::from(self.path.to_str().unwrap_or_default());
     self.select(None);
   }
@@ -644,6 +672,74 @@ impl FileDialog {
     // No selected file or it's not a folder, so use the current path.
     &self.path
   }
+
+  fn read_folder(&self) -> Result<Vec<PathBuf>, Error> {
+    #[cfg(windows)]
+    let drives = {
+      let mut drive_names = Vec::new();
+      if self.show_drives {
+        let mut drives = unsafe { GetLogicalDrives() };
+        let mut letter = b'A';
+        while drives > 0 {
+          if drives & 1 != 0 {
+            drive_names.push(format!("{}:\\", letter as char).into());
+          }
+          drives >>= 1;
+          letter += 1;
+        }
+      }
+      drive_names
+    };
+
+    fs::read_dir(&self.path).map(|entries| {
+      let mut paths: Vec<PathBuf> = entries
+        .filter_map(|result| result.ok())
+        .map(|entry| entry.path())
+        .collect();
+      paths.sort_by(|a, b| {
+        let da = a.is_dir();
+        let db = b.is_dir();
+        match da == db {
+          true => a.file_name().cmp(&b.file_name()),
+          false => db.cmp(&da),
+        }
+      });
+
+      #[cfg(windows)]
+      let paths = {
+        let mut items = drives;
+        items.reserve(paths.len());
+        items.append(&mut paths);
+        items
+      };
+
+      paths
+        .into_iter()
+        .filter(|path| {
+          if !path.is_dir() {
+            // Do not show system files.
+            if !path.is_file() {
+              return false;
+            }
+            // Filter.
+            if let Some(filter) = self.filter.as_ref() {
+              if !filter(path) {
+                return false;
+              }
+            } else if self.dialog_type == DialogType::SelectFolder {
+              return false;
+            }
+          }
+
+          #[cfg(unix)]
+          if !self.show_hidden && get_file_name(path).starts_with('.') {
+            return false;
+          }
+          true
+        })
+        .collect()
+    })
+  }
 }
 
 #[cfg(windows)]
@@ -669,74 +765,4 @@ fn get_file_name(path: &Path) -> &str {
 #[cfg(windows)]
 extern "C" {
   pub fn GetLogicalDrives() -> u32;
-}
-
-fn read_folder(
-  path: &Path,
-  filter: Option<&Filter>,
-  dialog_type: DialogType,
-  #[cfg(unix)] show_hidden: bool,
-) -> Result<Vec<PathBuf>, Error> {
-  #[cfg(windows)]
-  let drives = {
-    let mut drives = unsafe { GetLogicalDrives() };
-    let mut letter = b'A';
-    let mut drive_names = Vec::new();
-    while drives > 0 {
-      if drives & 1 != 0 {
-        drive_names.push(format!("{}:\\", letter as char).into());
-      }
-      drives >>= 1;
-      letter += 1;
-    }
-    drive_names
-  };
-
-  fs::read_dir(path).map(|entries| {
-    let mut paths: Vec<PathBuf> = entries
-      .filter_map(|result| result.ok())
-      .map(|entry| entry.path())
-      .collect();
-    paths.sort_by(|a, b| {
-      let da = a.is_dir();
-      let db = b.is_dir();
-      match da == db {
-        true => a.file_name().cmp(&b.file_name()),
-        false => db.cmp(&da),
-      }
-    });
-
-    #[cfg(windows)]
-    let paths = {
-      let mut items = drives;
-      items.reserve(paths.len());
-      items.append(&mut paths);
-      items
-    };
-
-    paths
-      .into_iter()
-      .filter(|path| {
-        if !path.is_dir() {
-          // Do not show system files.
-          if !path.is_file() {
-            return false;
-          }
-          // Filter.
-          if let Some(filter) = filter.as_ref() {
-            if !filter(path) {
-              return false;
-            }
-          } else if dialog_type == DialogType::SelectFolder {
-            return false;
-          }
-        }
-        #[cfg(unix)]
-        if !show_hidden && get_file_name(path).starts_with('.') {
-          return false;
-        }
-        true
-      })
-      .collect()
-  })
 }
