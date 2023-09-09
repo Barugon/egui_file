@@ -653,20 +653,9 @@ impl FileDialog {
 
   fn read_folder(&self) -> Result<Vec<PathBuf>, Error> {
     #[cfg(windows)]
-    let drives = {
-      let mut drive_names = Vec::new();
-      if self.show_drives {
-        let mut drives = unsafe { GetLogicalDrives() };
-        let mut letter = b'A';
-        while drives > 0 {
-          if drives & 1 != 0 {
-            drive_names.push(format!("{}:\\", letter as char).into());
-          }
-          drives >>= 1;
-          letter += 1;
-        }
-      }
-      drive_names
+    let drives = match self.show_drives {
+      true => get_drives(),
+      false => Vec::new(),
     };
 
     fs::read_dir(&self.path).map(|paths| {
@@ -718,6 +707,21 @@ impl FileDialog {
         .collect()
     })
   }
+}
+
+#[cfg(windows)]
+fn get_drives() -> Vec<PathBuf> {
+  let mut drive_names = Vec::new();
+  let mut drives = unsafe { GetLogicalDrives() };
+  let mut letter = b'A';
+  while drives > 0 {
+    if drives & 1 != 0 {
+      drive_names.push(format!("{}:\\", letter as char).into());
+    }
+    drives >>= 1;
+    letter += 1;
+  }
+  drive_names
 }
 
 #[cfg(windows)]
