@@ -70,7 +70,7 @@ pub struct FileDialog {
 }
 
 impl Debug for FileDialog {
-  #[cfg(target_family = "unix")]
+  #[cfg(unix)]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
       .field("path", &self.path)
@@ -92,7 +92,7 @@ impl Debug for FileDialog {
       .finish()
   }
 
-  #[cfg(target_family = "windows")]
+  #[cfg(windows)]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
       .field("path", &self.path)
@@ -114,7 +114,7 @@ impl Debug for FileDialog {
       .finish()
   }
 
-  #[cfg(all(not(target_family = "unix"), not(target_family = "windows")))]
+  #[cfg(all(not(unix), not(windows)))]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
       .field("path", &self.path)
