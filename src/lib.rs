@@ -86,6 +86,7 @@ impl Debug for FileDialog {
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
       // .field("filter", &self.filter)
+      // .field("edit_focus", &self.edit_focus)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
@@ -108,6 +109,7 @@ impl Debug for FileDialog {
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
       // .field("filter", &self.filter)
+      // .field("edit_focus", &self.edit_focus)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
@@ -130,6 +132,7 @@ impl Debug for FileDialog {
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
       // .field("filter", &self.filter)
+      // .field("edit_focus", &self.edit_focus)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
