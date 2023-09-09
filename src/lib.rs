@@ -625,18 +625,17 @@ impl FileDialog {
   fn read_folder(&self) -> Result<Vec<PathBuf>, Error> {
     #[cfg(windows)]
     let drives = {
-      let mut drives = unsafe { GetLogicalDrives() };
-      let mut letter = b'A';
       let mut drive_names = Vec::new();
-      while drives > 0 {
-        if !self.show_drives {
-          break;
+      if self.show_drives {
+        let mut drives = unsafe { GetLogicalDrives() };
+        let mut letter = b'A';
+        while drives > 0 {
+          if drives & 1 != 0 {
+            drive_names.push(format!("{}:\\", letter as char).into());
+          }
+          drives >>= 1;
+          letter += 1;
         }
-        if drives & 1 != 0 {
-          drive_names.push(format!("{}:\\", letter as char).into());
-        }
-        drives >>= 1;
-        letter += 1;
       }
       drive_names
     };
