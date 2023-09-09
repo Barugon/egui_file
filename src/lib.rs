@@ -59,10 +59,12 @@ pub struct FileDialog {
   resizable: bool,
   rename: bool,
   new_folder: bool,
+
+  /// Show drive letters on Windows.
   #[cfg(windows)]
   show_drives: bool,
 
-  // Show hidden files on unix systems.
+  /// Show hidden files on unix systems.
   #[cfg(unix)]
   show_hidden: bool,
 }
@@ -90,7 +92,29 @@ impl Debug for FileDialog {
       .finish()
   }
 
-  #[cfg(not(target_family = "unix"))]
+  #[cfg(target_family = "windows")]
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("FileDialog")
+      .field("path", &self.path)
+      .field("path_edit", &self.path_edit)
+      .field("selected_file", &self.selected_file)
+      .field("filename_edit", &self.filename_edit)
+      .field("files", &self.files)
+      .field("state", &self.state)
+      .field("dialog_type", &self.dialog_type)
+      .field("current_pos", &self.current_pos)
+      .field("default_size", &self.default_size)
+      .field("anchor", &self.anchor)
+      // Closures don't implement std::fmt::Debug.
+      // .field("filter", &self.filter)
+      .field("resizable", &self.resizable)
+      .field("rename", &self.rename)
+      .field("new_folder", &self.new_folder)
+      .field("show_drives", &self.show_drives)
+      .finish()
+  }
+
+  #[cfg(all(not(target_family = "unix"), not(target_family = "windows")))]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("FileDialog")
       .field("path", &self.path)
@@ -149,7 +173,6 @@ impl FileDialog {
       path_edit,
       selected_file: None,
       filename_edit,
-      show_drives: true,
       title: match dialog_type {
         DialogType::SelectFolder => "📁  Select Folder",
         DialogType::OpenFile => "📂  Open File",
@@ -169,6 +192,8 @@ impl FileDialog {
       rename: true,
       new_folder: true,
 
+      #[cfg(windows)]
+      show_drives: true,
       #[cfg(unix)]
       show_hidden: false,
     }
@@ -233,6 +258,7 @@ impl FileDialog {
     self.new_folder = new_folder;
     self
   }
+
   #[cfg(windows)]
   pub fn show_drives(mut self, drives: bool) -> Self {
     self.show_drives = drives;
@@ -622,6 +648,7 @@ impl FileDialog {
     // No selected file or it's not a folder, so use the current path.
     &self.path
   }
+
   fn read_folder(&self) -> Result<Vec<PathBuf>, Error> {
     #[cfg(windows)]
     let drives = {
