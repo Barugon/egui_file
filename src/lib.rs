@@ -678,23 +678,23 @@ impl FileDialog {
         .filter_map(|entry| {
           let path = entry.path();
           let dir = path.is_dir();
-          if !dir {
+          let info = FileInfo { path, dir };
+
+          if !info.dir {
             // Do not show system files.
-            if !path.is_file() {
+            if !info.path.is_file() {
               return None;
             }
 
             // Filter.
             if let Some(filter) = self.filter.as_ref() {
-              if !filter(&path) {
+              if !filter(&info.path) {
                 return None;
               }
             } else if self.dialog_type == DialogType::SelectFolder {
               return None;
             }
           }
-
-          let info = FileInfo { path, dir };
 
           #[cfg(unix)]
           if !self.show_hidden && get_file_name(&info).starts_with('.') {
