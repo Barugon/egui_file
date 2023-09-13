@@ -765,7 +765,7 @@ fn is_drive_root(path: &Path) -> bool {
 
 fn get_file_name(info: &FileInfo) -> &str {
   #[cfg(windows)]
-  if info.dir && is_drive_root(info.path) {
+  if info.dir && is_drive_root(&info.path) {
     return info.path.to_str().unwrap_or_default();
   }
   info
