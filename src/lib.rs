@@ -652,62 +652,59 @@ impl FileDialog {
   }
 
   fn read_folder(&self) -> Result<Vec<FileInfo>, Error> {
-    #[cfg(windows)]
-    let drives = match self.show_drives {
-      true => get_drives(),
-      false => Vec::new(),
-    };
-
-    fs::read_dir(&self.path).map(|paths| {
-      let mut paths: Vec<PathBuf> = paths
+    fs::read_dir(&self.path).map(|entries| {
+      let mut file_infos: Vec<FileInfo> = entries
         .filter_map(|result| result.ok())
-        .map(|entry| entry.path())
+        .filter_map(|entry| {
+          let path = entry.path();
+          let dir = path.is_dir();
+          if !dir {
+            // Do not show system files.
+            if !path.is_file() {
+              return None;
+            }
+
+            // Filter.
+            if let Some(filter) = self.filter.as_ref() {
+              if !filter(&path) {
+                return None;
+              }
+            } else if self.dialog_type == DialogType::SelectFolder {
+              return None;
+            }
+          }
+
+          #[cfg(unix)]
+          if !self.show_hidden && get_file_name(&path).starts_with('.') {
+            return None;
+          }
+
+          Some(FileInfo { path, dir })
+        })
         .collect();
 
-      // Sort with folders before files.
-      paths.sort_by(|a, b| {
-        let da = a.is_dir();
-        let db = b.is_dir();
-        match da == db {
-          true => a.file_name().cmp(&b.file_name()),
-          false => db.cmp(&da),
-        }
+      // Sort keeping folders before files.
+      file_infos.sort_by(|a, b| match a.dir == b.dir {
+        true => a.path.file_name().cmp(&b.path.file_name()),
+        false => b.dir.cmp(&a.dir),
       });
 
       #[cfg(windows)]
-      let result = {
-        let mut items = drives;
-        items.reserve(result.len());
-        items.append(&mut result);
-        items
+      let file_infos = match self.show_drives {
+        true => {
+          let drives = get_drives();
+          let infos = Vec::with_capacity(drives.len() + file_infos.len());
+          for drive in drives {
+            infos.push(FileInfo {
+              path: drive,
+              dir: true,
+            });
+          }
+          infos.append(&mut file_infos);
+          infos
+        }
+        false => file_infos,
       };
-
-      let mut file_infos = Vec::with_capacity(paths.len());
-      for path in paths {
-        let dir = path.is_dir();
-        if !dir {
-          // Do not show system files.
-          if !path.is_file() {
-            continue;
-          }
-
-          // Filter.
-          if let Some(filter) = self.filter.as_ref() {
-            if !filter(&path) {
-              continue;
-            }
-          } else if self.dialog_type == DialogType::SelectFolder {
-            continue;
-          }
-        }
-
-        #[cfg(unix)]
-        if !self.show_hidden && get_file_name(&path).starts_with('.') {
-          continue;
-        }
-
-        file_infos.push(FileInfo { path, dir });
-      }
 
       file_infos
     })
