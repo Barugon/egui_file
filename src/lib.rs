@@ -693,7 +693,7 @@ impl FileDialog {
       let file_infos = match self.show_drives {
         true => {
           let drives = get_drives();
-          let infos = Vec::with_capacity(drives.len() + file_infos.len());
+          let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
           for drive in drives {
             infos.push(FileInfo {
               path: drive,
