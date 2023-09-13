@@ -45,7 +45,7 @@ pub struct FileDialog {
   title: String,
 
   /// Files in directory.
-  files: Result<Vec<PathBuf>, Error>,
+  files: Result<Vec<FileInfo>, Error>,
   /// Current dialog state.
   state: State,
   /// Dialog type.
@@ -558,27 +558,27 @@ impl FileDialog {
         |ui, range| match self.files.as_ref() {
           Ok(files) => {
             ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-              for path in files[range].iter() {
-                let label = match path.is_dir() {
+              for info in files[range].iter() {
+                let label = match info.dir {
                   true => "🗀 ",
                   false => "🗋 ",
                 }
                 .to_string()
-                  + get_file_name(path);
+                  + get_file_name(&info.path);
 
-                let is_selected = Some(path) == self.selected_file.as_ref();
+                let is_selected = Some(&info.path) == self.selected_file.as_ref();
                 let selectable_label = ui.selectable_label(is_selected, label);
                 if selectable_label.clicked() {
-                  command = Some(Command::Select(path.clone()));
+                  command = Some(Command::Select(info.path.clone()));
                 }
 
                 if selectable_label.double_clicked() {
                   command = Some(match self.dialog_type == DialogType::SaveFile {
-                    true => match path.is_dir() {
+                    true => match info.dir {
                       true => Command::OpenSelected,
-                      false => Command::Save(path.clone()),
+                      false => Command::Save(info.path.clone()),
                     },
-                    false => Command::Open(path.clone()),
+                    false => Command::Open(info.path.clone()),
                   });
                 }
               }
@@ -651,7 +651,7 @@ impl FileDialog {
     &self.path
   }
 
-  fn read_folder(&self) -> Result<Vec<PathBuf>, Error> {
+  fn read_folder(&self) -> Result<Vec<FileInfo>, Error> {
     #[cfg(windows)]
     let drives = match self.show_drives {
       true => get_drives(),
@@ -659,11 +659,13 @@ impl FileDialog {
     };
 
     fs::read_dir(&self.path).map(|paths| {
-      let mut result: Vec<PathBuf> = paths
+      let mut paths: Vec<PathBuf> = paths
         .filter_map(|result| result.ok())
         .map(|entry| entry.path())
         .collect();
-      result.sort_by(|a, b| {
+
+      // Sort with folders before files.
+      paths.sort_by(|a, b| {
         let da = a.is_dir();
         let db = b.is_dir();
         match da == db {
@@ -680,33 +682,42 @@ impl FileDialog {
         items
       };
 
-      result
-        .into_iter()
-        .filter(|path| {
-          if !path.is_dir() {
-            // Do not show system files.
-            if !path.is_file() {
-              return false;
-            }
-            // Filter.
-            if let Some(filter) = self.filter.as_ref() {
-              if !filter(path) {
-                return false;
-              }
-            } else if self.dialog_type == DialogType::SelectFolder {
-              return false;
-            }
+      let mut file_infos = Vec::with_capacity(paths.len());
+      for path in paths {
+        let dir = path.is_dir();
+        if !dir {
+          // Do not show system files.
+          if !path.is_file() {
+            continue;
           }
 
-          #[cfg(unix)]
-          if !self.show_hidden && get_file_name(path).starts_with('.') {
-            return false;
+          // Filter.
+          if let Some(filter) = self.filter.as_ref() {
+            if !filter(&path) {
+              continue;
+            }
+          } else if self.dialog_type == DialogType::SelectFolder {
+            continue;
           }
-          true
-        })
-        .collect()
+        }
+
+        #[cfg(unix)]
+        if !self.show_hidden && get_file_name(&path).starts_with('.') {
+          continue;
+        }
+
+        file_infos.push(FileInfo { path, dir });
+      }
+
+      file_infos
     })
   }
+}
+
+#[derive(Debug)]
+struct FileInfo {
+  path: PathBuf,
+  dir: bool,
 }
 
 #[cfg(windows)]
