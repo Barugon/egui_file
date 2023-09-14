@@ -447,8 +447,7 @@ impl FileDialog {
 
           if response.lost_focus() {
             let path = PathBuf::from(&self.path_edit);
-            let dir = path.is_dir();
-            command = Some(Command::Open(FileInfo { path, dir }));
+            command = Some(Command::Open(FileInfo::new(path)));
           }
         });
       });
@@ -490,8 +489,7 @@ impl FileDialog {
                 DialogType::SelectFolder => command = Some(Command::Folder),
                 DialogType::OpenFile => {
                   if path.exists() {
-                    let dir = path.is_dir();
-                    command = Some(Command::Open(FileInfo { path, dir }));
+                    command = Some(Command::Open(FileInfo::new(path)));
                   }
                 }
                 DialogType::SaveFile => {
@@ -542,8 +540,7 @@ impl FileDialog {
                 if ui.button("Save").clicked() {
                   let filename = &self.filename_edit;
                   let path = self.path.join(filename);
-                  let dir = path.is_dir();
-                  command = Some(Command::Save(FileInfo { path, dir }));
+                  command = Some(Command::Save(FileInfo::new(path)));
                 };
               });
             }
@@ -609,10 +606,8 @@ impl FileDialog {
       match command {
         Command::Select(info) => self.select(Some(info)),
         Command::Folder => {
-          self.selected_file = Some(FileInfo {
-            path: self.get_folder().to_owned(),
-            dir: true,
-          });
+          let path = self.get_folder().to_owned();
+          self.selected_file = Some(FileInfo { path, dir: true });
           self.confirm();
         }
         Command::Open(path) => {
@@ -640,9 +635,8 @@ impl FileDialog {
           path.push(name);
           match fs::create_dir(&path) {
             Ok(_) => {
-              let dir = path.is_dir();
               self.refresh();
-              self.select(Some(FileInfo { path, dir }));
+              self.select(Some(FileInfo::new(path)));
               // TODO: scroll to selected?
             }
             Err(err) => println!("Error while creating directory: {err}"),
@@ -650,9 +644,8 @@ impl FileDialog {
         }
         Command::Rename(from, to) => match fs::rename(from, &to) {
           Ok(_) => {
-            let dir = to.is_dir();
             self.refresh();
-            self.select(Some(FileInfo { path: to, dir }));
+            self.select(Some(FileInfo::new(to)));
           }
           Err(err) => println!("Error while renaming: {err}"),
         },
@@ -676,10 +669,7 @@ impl FileDialog {
       let mut file_infos: Vec<FileInfo> = entries
         .filter_map(|result| result.ok())
         .filter_map(|entry| {
-          let path = entry.path();
-          let dir = path.is_dir();
-          let info = FileInfo { path, dir };
-
+          let info = FileInfo::new(entry.path());
           if !info.dir {
             // Do not show system files.
             if !info.path.is_file() {
@@ -737,6 +727,13 @@ impl FileDialog {
 struct FileInfo {
   path: PathBuf,
   dir: bool,
+}
+
+impl FileInfo {
+  fn new(path: PathBuf) -> Self {
+    let dir = path.is_dir();
+    Self { path, dir }
+  }
 }
 
 #[cfg(windows)]
