@@ -12,4 +12,4 @@ repository = "https://github.com/Barugon/egui_file"
 version = "0.10.2"
 
 [dependencies.egui]
-version = "0.22"
+version = "0.23"
