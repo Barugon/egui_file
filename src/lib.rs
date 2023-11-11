@@ -355,10 +355,9 @@ impl FileDialog {
   }
 
   fn select(&mut self, file: Option<FileInfo>) {
-    self.filename_edit = match &file {
-      Some(info) => get_file_name(info).to_owned(),
-      None => String::new(),
-    };
+    if let Some(info) = &file {
+      self.filename_edit = get_file_name(info).to_owned();
+    }
     self.selected_file = file;
   }
 
