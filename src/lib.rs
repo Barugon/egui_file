@@ -12,9 +12,9 @@ use std::{
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 /// Dialog state.
 pub enum State {
-  /// Is open.
+  /// Is currently visible.
   Open,
-  /// Was closed.
+  /// Is currently not visible.
   Closed,
   /// Was canceled.
   Cancelled,
@@ -391,7 +391,7 @@ impl FileDialog {
         self.ui(ctx, &mut is_open);
         match is_open {
           true => self.state,
-          false => State::Closed,
+          false => State::Cancelled,
         }
       }
       _ => State::Closed,
