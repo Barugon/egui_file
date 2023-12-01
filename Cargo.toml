@@ -1,7 +1,7 @@
 [package]
 authors = [
-  "Elias Kartashov <elias@lowenware.com>",
   "Barugon <barugon@dungeonbox.net>",
+  "Elias Kartashov <elias@lowenware.com>",
 ]
 description = "File dialog window for egui"
 edition = "2021"
@@ -9,7 +9,7 @@ keywords = ["file-dialog", "file-picker"]
 license = "MIT"
 name = "egui_file"
 repository = "https://github.com/Barugon/egui_file"
-version = "0.11.1"
+version = "0.12.0"
 
 [dependencies.egui]
-version = "0.23"
+version = "0.24"
