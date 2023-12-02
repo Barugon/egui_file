@@ -77,9 +77,9 @@ pub struct FileDialog {
 }
 
 impl Debug for FileDialog {
-  #[cfg(unix)]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("FileDialog")
+    let mut dbg = f.debug_struct("FileDialog");
+    let dbg = dbg
       .field("path", &self.path)
       .field("path_edit", &self.path_edit)
       .field("selected_file", &self.selected_file)
@@ -90,59 +90,21 @@ impl Debug for FileDialog {
       .field("current_pos", &self.current_pos)
       .field("default_size", &self.default_size)
       .field("anchor", &self.anchor)
-      // Closures don't implement std::fmt::Debug.
-      // .field("shown_files_filter", &self.shown_files_filter)
-      // .field("filename_filter", &self.filename_filter)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
-      .field("new_folder", &self.new_folder)
-      .field("show_hidden", &self.show_hidden)
-      .finish()
-  }
+      .field("new_folder", &self.new_folder);
 
-  #[cfg(windows)]
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("FileDialog")
-      .field("path", &self.path)
-      .field("path_edit", &self.path_edit)
-      .field("selected_file", &self.selected_file)
-      .field("filename_edit", &self.filename_edit)
-      .field("files", &self.files)
-      .field("state", &self.state)
-      .field("dialog_type", &self.dialog_type)
-      .field("current_pos", &self.current_pos)
-      .field("default_size", &self.default_size)
-      .field("anchor", &self.anchor)
-      // Closures don't implement std::fmt::Debug.
-      // .field("shown_files_filter", &self.shown_files_filter)
-      // .field("filename_filter", &self.filename_filter)
-      .field("resizable", &self.resizable)
-      .field("rename", &self.rename)
-      .field("new_folder", &self.new_folder)
-      .field("show_drives", &self.show_drives)
-      .finish()
-  }
+    // Closures don't implement std::fmt::Debug.
+    // .field("shown_files_filter", &self.shown_files_filter)
+    // .field("filename_filter", &self.filename_filter)
 
-  #[cfg(all(not(unix), not(windows)))]
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("FileDialog")
-      .field("path", &self.path)
-      .field("path_edit", &self.path_edit)
-      .field("selected_file", &self.selected_file)
-      .field("filename_edit", &self.filename_edit)
-      .field("files", &self.files)
-      .field("state", &self.state)
-      .field("dialog_type", &self.dialog_type)
-      .field("current_pos", &self.current_pos)
-      .field("default_size", &self.default_size)
-      .field("anchor", &self.anchor)
-      // Closures don't implement std::fmt::Debug.
-      // .field("shown_files_filter", &self.shown_files_filter)
-      // .field("filename_filter", &self.filename_filter)
-      .field("resizable", &self.resizable)
-      .field("rename", &self.rename)
-      .field("new_folder", &self.new_folder)
-      .finish()
+    #[cfg(unix)]
+    let dbg = dbg.field("show_hidden", &self.show_hidden);
+
+    #[cfg(windows)]
+    let dbg = dbg.field("show_drives", &self.show_drives);
+
+    dbg.finish()
   }
 }
 
