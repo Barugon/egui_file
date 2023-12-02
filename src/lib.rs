@@ -63,7 +63,6 @@ pub struct FileDialog {
   anchor: Option<(Align2, Vec2)>,
   shown_files_filter: Filter<PathBuf>,
   filename_filter: Filter<String>,
-  edit_focus: Option<EditFocus>,
   resizable: bool,
   rename: bool,
   new_folder: bool,
@@ -92,8 +91,8 @@ impl Debug for FileDialog {
       .field("default_size", &self.default_size)
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
-      // .field("filter", &self.filter)
-      // .field("edit_focus", &self.edit_focus)
+      // .field("shown_files_filter", &self.shown_files_filter)
+      // .field("filename_filter", &self.filename_filter)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
@@ -115,8 +114,8 @@ impl Debug for FileDialog {
       .field("default_size", &self.default_size)
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
-      // .field("filter", &self.filter)
-      // .field("edit_focus", &self.edit_focus)
+      // .field("shown_files_filter", &self.shown_files_filter)
+      // .field("filename_filter", &self.filename_filter)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
@@ -138,8 +137,8 @@ impl Debug for FileDialog {
       .field("default_size", &self.default_size)
       .field("anchor", &self.anchor)
       // Closures don't implement std::fmt::Debug.
-      // .field("filter", &self.filter)
-      // .field("edit_focus", &self.edit_focus)
+      // .field("shown_files_filter", &self.shown_files_filter)
+      // .field("filename_filter", &self.filename_filter)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
@@ -149,8 +148,6 @@ impl Debug for FileDialog {
 
 /// Function that returns `true` if the path is accepted.
 pub type Filter<T> = Box<dyn Fn(&<T as Deref>::Target) -> bool + Send + Sync + 'static>;
-
-pub type EditFocus = Box<dyn Fn(bool) + Send + Sync + 'static>;
 
 impl FileDialog {
   /// Create dialog that prompts the user to select a folder.
@@ -208,7 +205,6 @@ impl FileDialog {
       anchor: None,
       shown_files_filter: Box::new(|_| true),
       filename_filter: Box::new(|_| true),
-      edit_focus: None,
       resizable: true,
       rename: true,
       new_folder: true,
@@ -297,12 +293,6 @@ impl FileDialog {
   /// Set a function to filter the filename regardless of the type of dialog.
   pub fn filename_filter(mut self, filter: Filter<String>) -> Self {
     self.filename_filter = filter;
-    self
-  }
-
-  /// Calls the `edit_focus` function when a text edit gains or looses focus.
-  pub fn edit_focus(mut self, edit_focus: EditFocus) -> Self {
-    self.edit_focus = Some(edit_focus);
     self
   }
 
@@ -467,15 +457,8 @@ impl FileDialog {
           );
 
           if response.lost_focus() {
-            if let Some(edit_focus) = &self.edit_focus {
-              edit_focus(false);
-            }
             let path = PathBuf::from(&self.path_edit);
             command = Some(Command::Open(FileInfo::new(path)));
-          } else if response.gained_focus() {
-            if let Some(edit_focus) = &self.edit_focus {
-              edit_focus(true);
-            }
           }
         });
       });
@@ -509,10 +492,6 @@ impl FileDialog {
           );
 
           if response.lost_focus() {
-            if let Some(edit_focus) = &self.edit_focus {
-              edit_focus(false);
-            }
-
             let ctx = response.ctx;
             let enter_pressed = ctx.input(|state| state.key_pressed(egui::Key::Enter));
             if enter_pressed && !self.filename_edit.is_empty() {
@@ -531,10 +510,6 @@ impl FileDialog {
                   });
                 }
               }
-            }
-          } else if response.gained_focus() {
-            if let Some(edit_focus) = &self.edit_focus {
-              edit_focus(true);
             }
           }
         });
