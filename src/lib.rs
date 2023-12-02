@@ -6,6 +6,7 @@ use std::{
   fmt::Debug,
   fs,
   io::Error,
+  ops::Deref,
   path::{Path, PathBuf},
 };
 
@@ -60,7 +61,8 @@ pub struct FileDialog {
   current_pos: Option<Pos2>,
   default_size: Vec2,
   anchor: Option<(Align2, Vec2)>,
-  filter: Option<Filter>,
+  shown_files_filter: Filter<PathBuf>,
+  filename_filter: Filter<String>,
   edit_focus: Option<EditFocus>,
   resizable: bool,
   rename: bool,
@@ -146,7 +148,7 @@ impl Debug for FileDialog {
 }
 
 /// Function that returns `true` if the path is accepted.
-pub type Filter = Box<dyn Fn(&Path) -> bool + Send + Sync + 'static>;
+pub type Filter<T> = Box<dyn Fn(&<T as Deref>::Target) -> bool + Send + Sync + 'static>;
 
 pub type EditFocus = Box<dyn Fn(bool) + Send + Sync + 'static>;
 
@@ -204,7 +206,8 @@ impl FileDialog {
       current_pos: None,
       default_size: vec2(512.0, 512.0),
       anchor: None,
-      filter: None,
+      shown_files_filter: Box::new(|_| true),
+      filename_filter: Box::new(|_| true),
       edit_focus: None,
       resizable: true,
       rename: true,
@@ -286,8 +289,14 @@ impl FileDialog {
   }
 
   /// Set a function to filter shown files.
-  pub fn filter(mut self, filter: Filter) -> Self {
-    self.filter = Some(filter);
+  pub fn show_files_filter(mut self, filter: Filter<PathBuf>) -> Self {
+    self.shown_files_filter = filter;
+    self
+  }
+
+  /// Set a function to filter the filename regardless of the type of dialog.
+  pub fn filename_filter(mut self, filter: Filter<String>) -> Self {
+    self.filename_filter = filter;
     self
   }
 
@@ -362,11 +371,11 @@ impl FileDialog {
   }
 
   fn can_save(&self) -> bool {
-    self.selected_file.is_some() || !self.filename_edit.is_empty()
+    !self.filename_edit.is_empty() && (self.filename_filter)(self.filename_edit.as_str())
   }
 
   fn can_open(&self) -> bool {
-    self.selected_file.is_some()
+    !self.filename_edit.is_empty() && (self.filename_filter)(self.filename_edit.as_str())
   }
 
   fn can_rename(&self) -> bool {
@@ -704,11 +713,8 @@ impl FileDialog {
             }
 
             // Filter.
-            if let Some(filter) = self.filter.as_ref() {
-              if !filter(&info.path) {
-                return None;
-              }
-            } else if self.dialog_type == DialogType::SelectFolder {
+            let filter = self.shown_files_filter.as_ref();
+            if !filter(&info.path) {
               return None;
             }
           }
