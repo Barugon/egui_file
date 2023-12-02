@@ -246,13 +246,13 @@ impl FileDialog {
     self
   }
 
-  /// Set a function to filter shown files.
+  /// Set a function to filter listed files.
   pub fn show_files_filter(mut self, filter: Filter<PathBuf>) -> Self {
     self.show_files_filter = filter;
     self
   }
 
-  /// Set a function to filter the filename regardless of the type of dialog.
+  /// Set a function to filter the selected filename.
   pub fn filename_filter(mut self, filter: Filter<String>) -> Self {
     self.filename_filter = filter;
     self
@@ -533,7 +533,7 @@ impl FileDialog {
       });
     });
 
-    // Rows with files.
+    // File list.
     egui::CentralPanel::default().show_inside(ui, |ui| {
       ScrollArea::vertical().show_rows(
         ui,
@@ -650,8 +650,7 @@ impl FileDialog {
             }
 
             // Filter.
-            let filter = self.show_files_filter.as_ref();
-            if !filter(&info.path) {
+            if !(self.show_files_filter)(&info.path) {
               return None;
             }
           }
@@ -665,7 +664,7 @@ impl FileDialog {
         })
         .collect();
 
-      // Sort keeping folders before files.
+      // Sort with folders before files.
       file_infos.sort_by(|a, b| match a.dir == b.dir {
         true => a.path.file_name().cmp(&b.path.file_name()),
         false => b.dir.cmp(&a.dir),
