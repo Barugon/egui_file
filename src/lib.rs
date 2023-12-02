@@ -61,7 +61,7 @@ pub struct FileDialog {
   current_pos: Option<Pos2>,
   default_size: Vec2,
   anchor: Option<(Align2, Vec2)>,
-  shown_files_filter: Filter<PathBuf>,
+  show_files_filter: Filter<PathBuf>,
   filename_filter: Filter<String>,
   resizable: bool,
   rename: bool,
@@ -165,7 +165,7 @@ impl FileDialog {
       current_pos: None,
       default_size: vec2(512.0, 512.0),
       anchor: None,
-      shown_files_filter: Box::new(|_| true),
+      show_files_filter: Box::new(|_| true),
       filename_filter: Box::new(|_| true),
       resizable: true,
       rename: true,
@@ -248,7 +248,7 @@ impl FileDialog {
 
   /// Set a function to filter shown files.
   pub fn show_files_filter(mut self, filter: Filter<PathBuf>) -> Self {
-    self.shown_files_filter = filter;
+    self.show_files_filter = filter;
     self
   }
 
@@ -650,7 +650,7 @@ impl FileDialog {
             }
 
             // Filter.
-            let filter = self.shown_files_filter.as_ref();
+            let filter = self.show_files_filter.as_ref();
             if !filter(&info.path) {
               return None;
             }
