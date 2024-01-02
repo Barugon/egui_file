@@ -279,6 +279,11 @@ impl FileDialog {
     self.selected_file.as_ref().map(|info| info.path.as_path())
   }
 
+  /// Currently mounted directory that is being shown in the dialog box
+  pub fn directory(&self) -> &Path {
+    self.path.as_path()
+  }
+
   /// Set the dialog's current opened path
   pub fn set_path(&mut self, path: impl Into<PathBuf>) {
     self.path = path.into();
