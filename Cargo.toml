@@ -13,3 +13,7 @@ version = "0.13.0"
 
 [dependencies.egui]
 version = "0.24"
+
+[dev-dependencies]
+egui = "0.24"
+eframe = "0.24"
