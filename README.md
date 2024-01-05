@@ -42,7 +42,7 @@ impl App for Demo {
       if let Some(dialog) = &mut self.open_file_dialog {
         if dialog.show(ctx).selected() {
           if let Some(file) = dialog.path() {
-            self.opened_file = Some(file);
+            self.opened_file = Some(file.to_path_buf());
           }
         }
       }
@@ -51,7 +51,7 @@ impl App for Demo {
 }
 
 fn main() {
-  eframe::run_native(
+  let _ = eframe::run_native(
     "File Dialog Demo",
     eframe::NativeOptions::default(),
     Box::new(|_cc| Box::new(Demo::default())),

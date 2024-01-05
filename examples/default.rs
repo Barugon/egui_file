@@ -32,7 +32,7 @@ impl App for Demo {
 }
 
 fn main() {
-  eframe::run_native(
+  let _ = eframe::run_native(
     "File Dialog Demo",
     eframe::NativeOptions::default(),
     Box::new(|_cc| Box::new(Demo::default())),
