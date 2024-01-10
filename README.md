@@ -22,7 +22,10 @@ use eframe::{
   App, Frame,
 };
 use egui_file::FileDialog;
-use std::path::PathBuf;
+use std::{
+  ffi::OsStr,
+  path::{Path, PathBuf},
+};
 
 #[derive(Default)]
 pub struct Demo {
@@ -34,7 +37,12 @@ impl App for Demo {
   fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
     CentralPanel::default().show(ctx, |ui| {
       if (ui.button("Open")).clicked() {
-        let mut dialog = FileDialog::open_file(self.opened_file.clone());
+        // Show only files with the extension "txt".
+        let filter = Box::new({
+          let ext = Some(OsStr::new("txt"));
+          move |path: &Path| -> bool { path.extension() == ext }
+        });
+        let mut dialog = FileDialog::open_file(self.opened_file.clone()).show_files_filter(filter);
         dialog.open();
         self.open_file_dialog = Some(dialog);
       }
