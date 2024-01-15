@@ -461,7 +461,8 @@ impl FileDialog {
           if response.lost_focus() {
             let ctx = response.ctx;
             let enter_pressed = ctx.input(|state| state.key_pressed(egui::Key::Enter));
-            if enter_pressed && !self.filename_edit.is_empty() {
+
+            if enter_pressed && (self.filename_filter)(self.filename_edit.as_str()) {
               let path = self.path.join(&self.filename_edit);
               match self.dialog_type {
                 DialogType::SelectFolder => command = Some(Command::Folder),
