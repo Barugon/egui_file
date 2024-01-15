@@ -461,7 +461,8 @@ impl FileDialog {
           if response.lost_focus() {
             let ctx = response.ctx;
             let enter_pressed = ctx.input(|state| state.key_pressed(egui::Key::Enter));
-            if enter_pressed && !self.filename_edit.is_empty() {
+
+            if enter_pressed && (self.filename_filter)(self.filename_edit.as_str()) {
               let path = self.path.join(&self.filename_edit);
               match self.dialog_type {
                 DialogType::SelectFolder => command = Some(Command::Folder),
@@ -563,13 +564,27 @@ impl FileDialog {
                 }
 
                 if response.double_clicked() {
-                  command = Some(match self.dialog_type == DialogType::SaveFile {
-                    true => match info.dir {
-                      true => Command::OpenSelected,
-                      false => Command::Save(info.clone()),
-                    },
-                    false => Command::Open(info.clone()),
-                  });
+                  match self.dialog_type {
+                    DialogType::SelectFolder => {
+                      // always open folder on double click, otherwise SelectFolder cant enter subfolders
+                      command = Some(Command::OpenSelected);
+                    }
+                    // open or save file only if name matches filter
+                    DialogType::OpenFile => {
+                      if info.dir {
+                        command = Some(Command::OpenSelected);
+                      } else if (self.filename_filter)(self.filename_edit.as_str()) {
+                        command = Some(Command::Open(info.clone()));
+                      }
+                    }
+                    DialogType::SaveFile => {
+                      if info.dir {
+                        command = Some(Command::OpenSelected);
+                      } else if (self.filename_filter)(self.filename_edit.as_str()) {
+                        command = Some(Command::Save(info.clone()));
+                      }
+                    }
+                  }
                 }
               }
             })
