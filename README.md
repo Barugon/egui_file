@@ -2,7 +2,6 @@
 
 [![Crates.io](https://img.shields.io/crates/v/egui_file)](https://crates.io/crates/egui_file)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/egui_file)
-[![Dependency status](https://deps.rs/repo/github/Barugon/egui_file/status.svg)](https://deps.rs/repo/github/Barugon/egui_file)
 
 Taken from the [Dotrix](https://github.com/lowenware/dotrix) project, made into a stand-alone library and modified for more use cases.
 
