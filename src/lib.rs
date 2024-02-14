@@ -1,6 +1,3 @@
-use egui::{
-  vec2, Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
-};
 use std::{
   env,
   fmt::Debug,
@@ -8,6 +5,13 @@ use std::{
   io::Error,
   ops::Deref,
   path::{Path, PathBuf},
+};
+use std::cmp::{max, min};
+use std::iter::zip;
+use std::ops::Range;
+
+use egui::{
+  Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, vec2, Vec2, Window,
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -39,7 +43,7 @@ pub struct FileDialog {
   /// Editable field with path.
   path_edit: String,
 
-  /// Selected file path
+  /// Selected file path (single select mode).
   selected_file: Option<FileInfo>,
 
   /// Editable field with filename.
@@ -50,6 +54,9 @@ pub struct FileDialog {
 
   /// Files in directory.
   files: Result<Vec<FileInfo>, Error>,
+
+  /// Flag selected files in multi-select mode.
+  multi_selection: Vec<bool>,
 
   /// Current dialog state.
   state: State,
@@ -66,6 +73,8 @@ pub struct FileDialog {
   resizable: bool,
   rename: bool,
   new_folder: bool,
+  multi_select_enabled:bool,
+  range_start: Option<usize>,
 
   /// Show drive letters on Windows.
   #[cfg(windows)]
@@ -85,6 +94,7 @@ impl Debug for FileDialog {
       .field("selected_file", &self.selected_file)
       .field("filename_edit", &self.filename_edit)
       .field("files", &self.files)
+      .field("multi_selection", &self.multi_selection)
       .field("state", &self.state)
       .field("dialog_type", &self.dialog_type)
       .field("current_pos", &self.current_pos)
@@ -92,7 +102,9 @@ impl Debug for FileDialog {
       .field("anchor", &self.anchor)
       .field("resizable", &self.resizable)
       .field("rename", &self.rename)
-      .field("new_folder", &self.new_folder);
+      .field("new_folder", &self.new_folder)
+      .field("multi_select", &self.multi_select_enabled)
+      .field("range_start", &self.range_start);
 
     // Closures don't implement std::fmt::Debug.
     // .field("shown_files_filter", &self.shown_files_filter)
@@ -158,6 +170,7 @@ impl FileDialog {
       }
       .to_string(),
       files: Ok(Vec::new()),
+      multi_selection: Vec::new(),
       state: State::Closed,
       dialog_type,
 
@@ -176,6 +189,8 @@ impl FileDialog {
 
       #[cfg(unix)]
       show_hidden: false,
+      multi_select_enabled: false,
+      range_start: None,
     }
   }
 
@@ -239,6 +254,12 @@ impl FileDialog {
     self
   }
 
+  pub fn multi_select(mut self, multi_select: bool ) -> Self {
+    self.multi_select_enabled = multi_select;
+    self
+  }
+
+pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
   /// Show the mapped drives on Windows. Default is `true`.
   #[cfg(windows)]
   pub fn show_drives(mut self, drives: bool) -> Self {
@@ -279,6 +300,18 @@ impl FileDialog {
     self.selected_file.as_ref().map(|info| info.path.as_path())
   }
 
+  /// Retrieves multi selection as a vector.
+  pub fn selection(&self) -> Vec<&Path> {
+    match self.files {
+      Ok(ref files) => {
+        zip(files, &self.multi_selection)
+          .filter_map(|(info, selected)| if *selected { Some(info.path.as_path()) } else { None })
+          .collect()
+      }
+      Err(_) => Vec::new(),
+    }
+  }
+
   /// Currently mounted directory that is being shown in the dialog box
   pub fn directory(&self) -> &Path {
     self.path.as_path()
@@ -308,6 +341,11 @@ impl FileDialog {
         self.confirm();
       }
     }
+    else if self.multi_select_enabled {
+      if self.dialog_type == DialogType::OpenFile {
+        self.confirm();
+      }
+    }
   }
 
   fn confirm(&mut self) {
@@ -316,15 +354,45 @@ impl FileDialog {
 
   fn refresh(&mut self) {
     self.files = self.read_folder();
+    if self.files.is_ok() && self.multi_select_enabled {
+      self.multi_selection = vec![false; self.files.as_ref().unwrap().len()]
+    }
     self.path_edit = String::from(self.path.to_str().unwrap_or_default());
     self.select(None);
+    self.selected_file = None;
   }
 
   fn select(&mut self, file: Option<FileInfo>) {
     if let Some(info) = &file {
       self.filename_edit = get_file_name(info).to_owned();
     }
-    self.selected_file = file;
+     self.selected_file = file;
+  }
+
+  fn select_reset_multi(&mut self, idx: usize) {
+    let selected_val = self.multi_selection[idx];
+    for i in self.multi_selection.iter_mut() { *i = false; }
+    self.multi_selection[idx] = !selected_val;
+    self.range_start = Some(idx);
+  }
+
+  fn select_switch_multi(&mut self, idx: usize) {
+    self.multi_selection[idx] = !self.multi_selection[idx];
+    if self.multi_selection[idx] {
+      self.range_start = Some(idx);
+    }
+    else {
+      self.range_start = None;
+    }
+  }
+
+  fn select_range(&mut self, idx: usize) {
+    if let Some(range_start) = self.range_start {
+      let range = Range{start: min(idx, range_start), end: max(idx, range_start)};
+      for i in range.start..=range.end {
+        self.multi_selection[i] = true;
+      }
+    }
   }
 
   fn can_save(&self) -> bool {
@@ -332,7 +400,15 @@ impl FileDialog {
   }
 
   fn can_open(&self) -> bool {
-    !self.filename_edit.is_empty() && (self.filename_filter)(self.filename_edit.as_str())
+    if self.multi_select_enabled {
+      // This should be cached.
+      for (fi, sel) in zip(self.files.as_ref().unwrap(), &self.multi_selection) {
+        if *sel && (self.filename_filter)(get_file_name(fi).into()){ return true; }}
+      false
+    }
+    else {
+      !self.filename_edit.is_empty() && (self.filename_filter)(self.filename_edit.as_str())
+    }
   }
 
   fn can_rename(&self) -> bool {
@@ -395,10 +471,14 @@ impl FileDialog {
       Folder,
       Open(FileInfo),
       OpenSelected,
+      BrowseDirectory(FileInfo),
       Refresh,
       Rename(PathBuf, PathBuf),
       Save(FileInfo),
       Select(FileInfo),
+      MultiSelectRange(usize),
+      MultiSelect(usize),
+      MultiSelectSwitch(usize),
       UpDirectory,
     }
     let mut command: Option<Command> = None;
@@ -460,7 +540,7 @@ impl FileDialog {
 
           if response.lost_focus() {
             let ctx = response.ctx;
-            let enter_pressed = ctx.input(|state| state.key_pressed(egui::Key::Enter));
+            let enter_pressed = ctx.input(|state| state.key_pressed(Key::Enter));
 
             if enter_pressed && (self.filename_filter)(self.filename_edit.as_str()) {
               let path = self.path.join(&self.filename_edit);
@@ -549,7 +629,10 @@ impl FileDialog {
           Ok(files) => {
             ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
               let selected = self.selected_file.as_ref().map(|info| &info.path);
-              for info in files[range].iter() {
+              let range_start = range.start;
+
+              for (n,info) in files[range].iter().enumerate() {
+                let idx = n + range_start;
                 let label = match info.dir {
                   true => "🗀 ",
                   false => "🗋 ",
@@ -557,10 +640,28 @@ impl FileDialog {
                 .to_string()
                   + get_file_name(info);
 
-                let is_selected = Some(&info.path) == selected;
+                let is_selected = if self.multi_select_enabled {
+                  self.multi_selection[idx]
+                }
+                else {
+                  Some(&info.path) == selected
+                };
                 let response = ui.selectable_label(is_selected, label);
                 if response.clicked() {
-                  command = Some(Command::Select(info.clone()));
+                  if self.multi_select_enabled {
+                    if ui.input(|i| i.modifiers.shift) {
+                      command = Some(Command::MultiSelectRange(idx))
+                    }
+                    else if ui.input(|i| i.modifiers.ctrl) {
+                      command = Some(Command::MultiSelectSwitch(idx))
+                    }
+                    else {
+                      command = Some(Command::MultiSelect(idx))
+                    }
+                  }
+                  else {
+                    command = Some(Command::Select(info.clone()));
+                  }
                 }
 
                 if response.double_clicked() {
@@ -572,7 +673,7 @@ impl FileDialog {
                     // open or save file only if name matches filter
                     DialogType::OpenFile => {
                       if info.dir {
-                        command = Some(Command::OpenSelected);
+                        command = Some(Command::BrowseDirectory(info.clone()));
                       } else if (self.filename_filter)(self.filename_edit.as_str()) {
                         command = Some(Command::Open(info.clone()));
                       }
@@ -598,6 +699,9 @@ impl FileDialog {
     if let Some(command) = command {
       match command {
         Command::Select(info) => self.select(Some(info)),
+        Command::MultiSelect(idx) => self.select_reset_multi(idx),
+        Command::MultiSelectRange(idx) => self.select_range(idx),
+        Command::MultiSelectSwitch(idx) => self.select_switch_multi(idx),
         Command::Folder => {
           let path = self.get_folder().to_owned();
           self.selected_file = Some(FileInfo { path, dir: true });
@@ -608,6 +712,10 @@ impl FileDialog {
           self.open_selected();
         }
         Command::OpenSelected => self.open_selected(),
+        Command::BrowseDirectory(dir) => {
+          self.selected_file = Some(dir);
+          self.open_selected();
+        }
         Command::Save(file) => {
           self.selected_file = Some(file);
           self.confirm();
