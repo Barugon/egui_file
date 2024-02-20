@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::{
   env,
   fmt::Debug,
@@ -6,11 +7,9 @@ use std::{
   ops::Deref,
   path::{Path, PathBuf},
 };
-use std::cmp::{max, min};
-use std::ops::Range;
 
 use egui::{
-  Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, vec2, Vec2, Window,
+  vec2, Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -69,7 +68,7 @@ pub struct FileDialog {
   resizable: bool,
   rename: bool,
   new_folder: bool,
-  multi_select_enabled:bool,
+  multi_select_enabled: bool,
   range_start: Option<usize>,
 
   /// Show drive letters on Windows.
@@ -145,7 +144,7 @@ impl FileDialog {
       let info = FileInfo {
         path: path.clone(),
         dir: false,
-        selected: false
+        selected: false,
       };
 
       filename_edit = get_file_name(&info).to_string();
@@ -249,12 +248,14 @@ impl FileDialog {
     self
   }
 
-  pub fn multi_select(mut self, multi_select: bool ) -> Self {
+  pub fn multi_select(mut self, multi_select: bool) -> Self {
     self.multi_select_enabled = multi_select;
     self
   }
 
-pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
+  pub fn has_multi_select(&self) -> bool {
+    self.multi_select_enabled
+  }
   /// Show the mapped drives on Windows. Default is `true`.
   #[cfg(windows)]
   pub fn show_drives(mut self, drives: bool) -> Self {
@@ -298,11 +299,16 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
   /// Retrieves multi selection as a vector.
   pub fn selection(&self) -> Vec<&Path> {
     match self.files {
-      Ok(ref files) => {
-        files.iter()
-          .filter_map(|info| if info.selected { Some(info.path.as_path()) } else { None })
-          .collect()
-      }
+      Ok(ref files) => files
+        .iter()
+        .filter_map(|info| {
+          if info.selected {
+            Some(info.path.as_path())
+          } else {
+            None
+          }
+        })
+        .collect(),
       Err(_) => Vec::new(),
     }
   }
@@ -335,9 +341,8 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
       } else if self.dialog_type == DialogType::OpenFile {
         self.confirm();
       }
-    }
-    else if self.multi_select_enabled && self.dialog_type == DialogType::OpenFile {
-        self.confirm();
+    } else if self.multi_select_enabled && self.dialog_type == DialogType::OpenFile {
+      self.confirm();
     }
   }
 
@@ -356,13 +361,15 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
     if let Some(info) = &file {
       self.filename_edit = get_file_name(info).to_owned();
     }
-     self.selected_file = file;
+    self.selected_file = file;
   }
 
   fn select_reset_multi(&mut self, idx: usize) {
     if let Ok(files) = &mut self.files {
       let selected_val = files[idx].selected;
-      for i in files.iter_mut() { i.selected = false; }
+      for file in files.iter_mut() {
+        file.selected = false;
+      }
       files[idx].selected = !selected_val;
       self.range_start = Some(idx);
     }
@@ -376,8 +383,7 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
       } else {
         self.range_start = None;
       }
-    }
-    else {
+    } else {
       self.range_start = None;
     }
   }
@@ -385,8 +391,8 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
   fn select_range(&mut self, idx: usize) {
     if let Ok(files) = &mut self.files {
       if let Some(range_start) = self.range_start {
-        let range = Range { start: min(idx, range_start), end: max(idx, range_start) };
-        for i in range.start..=range.end {
+        let range = min(idx, range_start)..=max(idx, range_start);
+        for i in range {
           files[i].selected = true;
         }
       }
@@ -401,10 +407,12 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
     if self.multi_select_enabled {
       // This should be cached.
       for fi in self.files.as_ref().unwrap() {
-        if fi.selected && (self.filename_filter)(get_file_name(fi).into()){ return true; }}
+        if fi.selected && (self.filename_filter)(get_file_name(fi)) {
+          return true;
+        }
+      }
       false
-    }
-    else {
+    } else {
       !self.filename_edit.is_empty() && (self.filename_filter)(self.filename_edit.as_str())
     }
   }
@@ -551,8 +559,16 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
                 }
                 DialogType::SaveFile => {
                   command = Some(match path.is_dir() {
-                    true => Command::Open(FileInfo { path, dir: true, selected: false }),
-                    false => Command::Save(FileInfo { path, dir: false, selected: false }),
+                    true => Command::Open(FileInfo {
+                      path,
+                      dir: true,
+                      selected: false,
+                    }),
+                    false => Command::Save(FileInfo {
+                      path,
+                      dir: false,
+                      selected: false,
+                    }),
                   });
                 }
               }
@@ -629,7 +645,7 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
               let selected = self.selected_file.as_ref().map(|info| &info.path);
               let range_start = range.start;
 
-              for (n,info) in files[range].iter().enumerate() {
+              for (n, info) in files[range].iter().enumerate() {
                 let idx = n + range_start;
                 let label = match info.dir {
                   true => "🗀 ",
@@ -640,8 +656,7 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
 
                 let is_selected = if self.multi_select_enabled {
                   files[idx].selected
-                }
-                else {
+                } else {
                   Some(&info.path) == selected
                 };
                 let response = ui.selectable_label(is_selected, label);
@@ -649,15 +664,12 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
                   if self.multi_select_enabled {
                     if ui.input(|i| i.modifiers.shift) {
                       command = Some(Command::MultiSelectRange(idx))
-                    }
-                    else if ui.input(|i| i.modifiers.ctrl) {
+                    } else if ui.input(|i| i.modifiers.ctrl) {
                       command = Some(Command::MultiSelectSwitch(idx))
-                    }
-                    else {
+                    } else {
                       command = Some(Command::MultiSelect(idx))
                     }
-                  }
-                  else {
+                  } else {
                     command = Some(Command::Select(info.clone()));
                   }
                 }
@@ -665,10 +677,10 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
                 if response.double_clicked() {
                   match self.dialog_type {
                     DialogType::SelectFolder => {
-                      // always open folder on double click, otherwise SelectFolder cant enter subfolders
+                      // Always open folder on double click, otherwise SelectFolder cant enter sub-folders.
                       command = Some(Command::OpenSelected);
                     }
-                    // open or save file only if name matches filter
+                    // Open or save file only if name matches filter.
                     DialogType::OpenFile => {
                       if info.dir {
                         command = Some(Command::BrowseDirectory(info.clone()));
@@ -702,7 +714,11 @@ pub fn has_multi_select(&self) -> bool { self.multi_select_enabled }
         Command::MultiSelectSwitch(idx) => self.select_switch_multi(idx),
         Command::Folder => {
           let path = self.get_folder().to_owned();
-          self.selected_file = Some(FileInfo { path, dir: true, selected: true });
+          self.selected_file = Some(FileInfo {
+            path,
+            dir: true,
+            selected: true,
+          });
           self.confirm();
         }
         Command::Open(path) => {
@@ -828,7 +844,11 @@ struct FileInfo {
 impl FileInfo {
   fn new(path: PathBuf) -> Self {
     let dir = path.is_dir();
-    Self { path, dir, selected: false }
+    Self {
+      path,
+      dir,
+      selected: false,
+    }
   }
 }
 
