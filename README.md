@@ -11,7 +11,7 @@ Taken from the [Dotrix](https://github.com/lowenware/dotrix) project, made into 
 
 ````toml
 [dependencies]
-egui_file = "0.15"
+egui_file = "0.16"
 eframe = "0.26"
 ````
 
