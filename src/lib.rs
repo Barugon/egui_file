@@ -405,10 +405,11 @@ impl FileDialog {
 
   fn can_open(&self) -> bool {
     if self.multi_select_enabled {
-      // This should be cached.
-      for fi in self.files.as_ref().unwrap() {
-        if fi.selected && (self.filename_filter)(get_file_name(fi)) {
-          return true;
+      if let Ok(files) = &self.files {
+        for file in files {
+          if file.selected && (self.filename_filter)(get_file_name(file)) {
+            return true;
+          }
         }
       }
       false
