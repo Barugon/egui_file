@@ -822,6 +822,7 @@ impl FileDialog {
             infos.push(FileInfo {
               path: drive,
               dir: true,
+              selected: false,
             });
           }
           infos.append(&mut file_infos);
