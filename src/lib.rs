@@ -1,4 +1,5 @@
 use std::cmp::{max, min};
+use std::fs::{DirEntry, FileType};
 use std::{
   env,
   fmt::Debug,
@@ -137,22 +138,15 @@ impl FileDialog {
   fn new(dialog_type: DialogType, initial_path: Option<PathBuf>) -> Self {
     let mut path = initial_path.unwrap_or_else(|| env::current_dir().unwrap_or_default());
     let mut filename_edit = String::new();
+    let info = FileInfo::from_path(path.clone());
 
-    if path.is_file() {
+    if info.is_file() {
       assert!(dialog_type != DialogType::SelectFolder);
-
-      let info = FileInfo {
-        path: path.clone(),
-        dir: false,
-        selected: false,
-      };
-
       filename_edit = get_file_name(&info).to_string();
       path.pop();
     }
 
     let path_edit = path.to_str().unwrap_or_default().to_string();
-
     Self {
       path,
       path_edit,
@@ -336,7 +330,7 @@ impl FileDialog {
 
   fn open_selected(&mut self) {
     if let Some(info) = &self.selected_file {
-      if info.dir {
+      if info.is_dir() {
         self.set_path(info.path.clone())
       } else if self.dialog_type == DialogType::OpenFile {
         self.confirm();
@@ -512,7 +506,7 @@ impl FileDialog {
 
           if response.lost_focus() {
             let path = PathBuf::from(&self.path_edit);
-            command = Some(Command::Open(FileInfo::new(path)));
+            command = Some(Command::Open(FileInfo::from_path(path)));
           }
         });
       });
@@ -555,21 +549,14 @@ impl FileDialog {
                 DialogType::SelectFolder => command = Some(Command::Folder),
                 DialogType::OpenFile => {
                   if path.exists() {
-                    command = Some(Command::Open(FileInfo::new(path)));
+                    command = Some(Command::Open(FileInfo::from_path(path)));
                   }
                 }
                 DialogType::SaveFile => {
-                  command = Some(match path.is_dir() {
-                    true => Command::Open(FileInfo {
-                      path,
-                      dir: true,
-                      selected: false,
-                    }),
-                    false => Command::Save(FileInfo {
-                      path,
-                      dir: false,
-                      selected: false,
-                    }),
+                  let file_info = FileInfo::from_path(path);
+                  command = Some(match file_info.is_dir() {
+                    true => Command::Open(file_info),
+                    false => Command::Save(file_info),
                   });
                 }
               }
@@ -600,7 +587,7 @@ impl FileDialog {
           }
           DialogType::SaveFile => {
             let should_open_directory = match &self.selected_file {
-              Some(file) => file.dir,
+              Some(file) => file.is_dir(),
               None => false,
             };
 
@@ -614,7 +601,7 @@ impl FileDialog {
                 if ui.button("Save").clicked() {
                   let filename = &self.filename_edit;
                   let path = self.path.join(filename);
-                  command = Some(Command::Save(FileInfo::new(path)));
+                  command = Some(Command::Save(FileInfo::from_path(path)));
                 };
               });
             }
@@ -648,7 +635,7 @@ impl FileDialog {
 
               for (n, info) in files[range].iter().enumerate() {
                 let idx = n + range_start;
-                let label = match info.dir {
+                let label = match info.is_dir() {
                   true => "🗀 ",
                   false => "🗋 ",
                 }
@@ -683,14 +670,14 @@ impl FileDialog {
                     }
                     // Open or save file only if name matches filter.
                     DialogType::OpenFile => {
-                      if info.dir {
+                      if info.is_dir() {
                         command = Some(Command::BrowseDirectory(info.clone()));
                       } else if (self.filename_filter)(self.filename_edit.as_str()) {
                         command = Some(Command::Open(info.clone()));
                       }
                     }
                     DialogType::SaveFile => {
-                      if info.dir {
+                      if info.is_dir() {
                         command = Some(Command::OpenSelected);
                       } else if (self.filename_filter)(self.filename_edit.as_str()) {
                         command = Some(Command::Save(info.clone()));
@@ -715,11 +702,7 @@ impl FileDialog {
         Command::MultiSelectSwitch(idx) => self.select_switch_multi(idx),
         Command::Folder => {
           let path = self.get_folder().to_owned();
-          self.selected_file = Some(FileInfo {
-            path,
-            dir: true,
-            selected: true,
-          });
+          self.selected_file = Some(FileInfo::from_path(path));
           self.confirm();
         }
         Command::Open(path) => {
@@ -752,7 +735,7 @@ impl FileDialog {
           match fs::create_dir(&path) {
             Ok(_) => {
               self.refresh();
-              self.select(Some(FileInfo::new(path)));
+              self.select(Some(FileInfo::from_path(path)));
               // TODO: scroll to selected?
             }
             Err(err) => println!("Error while creating directory: {err}"),
@@ -761,7 +744,7 @@ impl FileDialog {
         Command::Rename(from, to) => match fs::rename(from, &to) {
           Ok(_) => {
             self.refresh();
-            self.select(Some(FileInfo::new(to)));
+            self.select(Some(FileInfo::from_path(to)));
           }
           Err(err) => println!("Error while renaming: {err}"),
         },
@@ -771,7 +754,7 @@ impl FileDialog {
 
   fn get_folder(&self) -> &Path {
     if let Some(info) = &self.selected_file {
-      if info.dir {
+      if info.is_dir() {
         return info.path.as_path();
       }
     }
@@ -785,8 +768,8 @@ impl FileDialog {
       let mut file_infos: Vec<FileInfo> = entries
         .filter_map(|result| result.ok())
         .filter_map(|entry| {
-          let info = FileInfo::new(entry.path());
-          if !info.dir {
+          let info = FileInfo::from_dir_entry(entry);
+          if !info.is_dir() {
             // Do not show system files.
             if !info.path.is_file() {
               return None;
@@ -808,9 +791,9 @@ impl FileDialog {
         .collect();
 
       // Sort with folders before files.
-      file_infos.sort_by(|a, b| match a.dir == b.dir {
+      file_infos.sort_by(|a, b| match a.is_dir() == b.is_dir() {
         true => a.path.file_name().cmp(&b.path.file_name()),
-        false => b.dir.cmp(&a.dir),
+        false => b.is_dir().cmp(&a.is_dir()),
       });
 
       #[cfg(windows)]
@@ -819,11 +802,7 @@ impl FileDialog {
           let drives = get_drives();
           let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
           for drive in drives {
-            infos.push(FileInfo {
-              path: drive,
-              dir: true,
-              selected: false,
-            });
+            infos.push(FileInfo::from_path(drive));
           }
           infos.append(&mut file_infos);
           infos
@@ -839,18 +818,34 @@ impl FileDialog {
 #[derive(Clone, Debug, Default)]
 struct FileInfo {
   path: PathBuf,
-  dir: bool,
+  file_type: Option<FileType>,
   selected: bool,
 }
 
 impl FileInfo {
-  fn new(path: PathBuf) -> Self {
-    let dir = path.is_dir();
+  fn from_path(path: PathBuf) -> Self {
+    let file_type = fs::metadata(&path).ok().map(|meta| meta.file_type());
     Self {
       path,
-      dir,
+      file_type,
       selected: false,
     }
+  }
+
+  fn from_dir_entry(entry: DirEntry) -> Self {
+    Self {
+      path: entry.path(),
+      file_type: entry.file_type().ok(),
+      selected: false,
+    }
+  }
+
+  fn is_file(&self) -> bool {
+    self.file_type.is_some_and(|file_type| file_type.is_file())
+  }
+
+  fn is_dir(&self) -> bool {
+    self.file_type.is_some_and(|file_type| file_type.is_dir())
   }
 }
 
@@ -880,7 +875,7 @@ fn is_drive_root(path: &Path) -> bool {
 
 fn get_file_name(info: &FileInfo) -> &str {
   #[cfg(windows)]
-  if info.dir && is_drive_root(&info.path) {
+  if info.is_dir() && is_drive_root(&info.path) {
     return info.path.to_str().unwrap_or_default();
   }
   info
