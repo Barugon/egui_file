@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::{max, min, Ordering};
 use std::fs::{DirEntry, FileType};
 use std::{
   env,
@@ -791,9 +791,10 @@ impl FileDialog {
         .collect();
 
       // Sort with folders before files.
-      file_infos.sort_by(|a, b| match a.is_dir() == b.is_dir() {
-        true => a.path.file_name().cmp(&b.path.file_name()),
-        false => b.is_dir().cmp(&a.is_dir()),
+      file_infos.sort_by(|a, b| match b.is_dir().cmp(&a.is_dir()) {
+        Ordering::Less => Ordering::Less,
+        Ordering::Equal => a.path.file_name().cmp(&b.path.file_name()),
+        Ordering::Greater => Ordering::Greater,
       });
 
       #[cfg(windows)]
