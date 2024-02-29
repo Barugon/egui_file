@@ -1,5 +1,5 @@
 use std::cmp::{max, min, Ordering};
-use std::fs::{DirEntry, FileType};
+use std::fs::FileType;
 use std::{
   env,
   fmt::Debug,
@@ -138,7 +138,7 @@ impl FileDialog {
   fn new(dialog_type: DialogType, initial_path: Option<PathBuf>) -> Self {
     let mut path = initial_path.unwrap_or_else(|| env::current_dir().unwrap_or_default());
     let mut filename_edit = String::new();
-    let info = FileInfo::from_path(path.clone());
+    let info = FileInfo::new(path.clone());
 
     if info.is_file() {
       assert!(dialog_type != DialogType::SelectFolder);
@@ -506,7 +506,7 @@ impl FileDialog {
 
           if response.lost_focus() {
             let path = PathBuf::from(&self.path_edit);
-            command = Some(Command::Open(FileInfo::from_path(path)));
+            command = Some(Command::Open(FileInfo::new(path)));
           }
         });
       });
@@ -549,11 +549,11 @@ impl FileDialog {
                 DialogType::SelectFolder => command = Some(Command::Folder),
                 DialogType::OpenFile => {
                   if path.exists() {
-                    command = Some(Command::Open(FileInfo::from_path(path)));
+                    command = Some(Command::Open(FileInfo::new(path)));
                   }
                 }
                 DialogType::SaveFile => {
-                  let file_info = FileInfo::from_path(path);
+                  let file_info = FileInfo::new(path);
                   command = Some(match file_info.is_dir() {
                     true => Command::Open(file_info),
                     false => Command::Save(file_info),
@@ -601,7 +601,7 @@ impl FileDialog {
                 if ui.button("Save").clicked() {
                   let filename = &self.filename_edit;
                   let path = self.path.join(filename);
-                  command = Some(Command::Save(FileInfo::from_path(path)));
+                  command = Some(Command::Save(FileInfo::new(path)));
                 };
               });
             }
@@ -702,7 +702,7 @@ impl FileDialog {
         Command::MultiSelectSwitch(idx) => self.select_switch_multi(idx),
         Command::Folder => {
           let path = self.get_folder().to_owned();
-          self.selected_file = Some(FileInfo::from_path(path));
+          self.selected_file = Some(FileInfo::new(path));
           self.confirm();
         }
         Command::Open(path) => {
@@ -735,7 +735,7 @@ impl FileDialog {
           match fs::create_dir(&path) {
             Ok(_) => {
               self.refresh();
-              self.select(Some(FileInfo::from_path(path)));
+              self.select(Some(FileInfo::new(path)));
               // TODO: scroll to selected?
             }
             Err(err) => println!("Error while creating directory: {err}"),
@@ -744,7 +744,7 @@ impl FileDialog {
         Command::Rename(from, to) => match fs::rename(from, &to) {
           Ok(_) => {
             self.refresh();
-            self.select(Some(FileInfo::from_path(to)));
+            self.select(Some(FileInfo::new(to)));
           }
           Err(err) => println!("Error while renaming: {err}"),
         },
@@ -768,7 +768,7 @@ impl FileDialog {
       let mut file_infos: Vec<FileInfo> = entries
         .filter_map(|result| result.ok())
         .filter_map(|entry| {
-          let info = FileInfo::from_dir_entry(entry);
+          let info = FileInfo::new(entry.path());
           if !info.is_dir() {
             // Do not show system files.
             if !info.path.is_file() {
@@ -803,7 +803,7 @@ impl FileDialog {
           let drives = get_drives();
           let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
           for drive in drives {
-            infos.push(FileInfo::from_path(drive));
+            infos.push(FileInfo::new(drive));
           }
           infos.append(&mut file_infos);
           infos
@@ -824,19 +824,11 @@ struct FileInfo {
 }
 
 impl FileInfo {
-  fn from_path(path: PathBuf) -> Self {
+  fn new(path: PathBuf) -> Self {
     let file_type = fs::metadata(&path).ok().map(|meta| meta.file_type());
     Self {
       path,
       file_type,
-      selected: false,
-    }
-  }
-
-  fn from_dir_entry(entry: DirEntry) -> Self {
-    Self {
-      path: entry.path(),
-      file_type: entry.file_type().ok(),
       selected: false,
     }
   }
