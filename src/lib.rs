@@ -471,7 +471,7 @@ impl FileDialog {
 
     window.show(ctx, |ui| {
       if self.keep_on_top {
-          ui.ctx().move_to_top(ui.layer_id());
+        ui.ctx().move_to_top(ui.layer_id());
       }
       self.ui_in_window(ui)
     });
