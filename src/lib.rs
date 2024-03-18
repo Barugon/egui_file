@@ -272,8 +272,8 @@ impl FileDialog {
   }
 
   pub fn keep_on_top(mut self, keep_on_top: bool) -> Self {
-      self.keep_on_top = keep_on_top;
-      self
+    self.keep_on_top = keep_on_top;
+    self
   }
 
   /// Get the dialog type.
