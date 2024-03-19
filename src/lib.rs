@@ -71,6 +71,7 @@ pub struct FileDialog {
   new_folder: bool,
   multi_select_enabled: bool,
   range_start: Option<usize>,
+  keep_on_top: bool,
 
   /// Show drive letters on Windows.
   #[cfg(windows)]
@@ -99,8 +100,8 @@ impl Debug for FileDialog {
       .field("rename", &self.rename)
       .field("new_folder", &self.new_folder)
       .field("multi_select", &self.multi_select_enabled)
-      .field("range_start", &self.range_start);
-
+      .field("range_start", &self.range_start)
+      .field("keep_on_top", &self.keep_on_top);
     // Closures don't implement std::fmt::Debug.
     // .field("shown_files_filter", &self.shown_files_filter)
     // .field("filename_filter", &self.filename_filter)
@@ -179,6 +180,7 @@ impl FileDialog {
       show_hidden: false,
       multi_select_enabled: false,
       range_start: None,
+      keep_on_top: false,
     }
   }
 
@@ -266,6 +268,11 @@ impl FileDialog {
   /// Set a function to filter the selected filename.
   pub fn filename_filter(mut self, filter: Filter<String>) -> Self {
     self.filename_filter = filter;
+    self
+  }
+
+  pub fn keep_on_top(mut self, keep_on_top: bool) -> Self {
+    self.keep_on_top = keep_on_top;
     self
   }
 
@@ -462,7 +469,12 @@ impl FileDialog {
       window = window.current_pos(current_pos);
     }
 
-    window.show(ctx, |ui| self.ui_in_window(ui));
+    window.show(ctx, |ui| {
+      if self.keep_on_top {
+        ui.ctx().move_to_top(ui.layer_id());
+      }
+      self.ui_in_window(ui)
+    });
   }
 
   fn ui_in_window(&mut self, ui: &mut Ui) {
