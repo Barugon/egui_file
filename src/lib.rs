@@ -360,7 +360,9 @@ impl FileDialog {
 
   fn select(&mut self, file: Option<FileInfo>) {
     if let Some(info) = &file {
-      self.filename_edit = get_file_name(info).to_owned();
+      if self.dialog_type != DialogType::SaveFile {
+        self.filename_edit = get_file_name(info).to_owned();
+      }
     }
     self.selected_file = file;
   }
