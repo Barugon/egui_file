@@ -338,7 +338,7 @@ impl FileDialog {
   fn open_selected(&mut self) {
     if let Some(info) = &self.selected_file {
       if info.is_dir() {
-        self.set_path(info.path.clone())
+        self.set_path(info.path.clone());
       } else if self.dialog_type == DialogType::OpenFile {
         self.confirm();
       }
@@ -360,7 +360,9 @@ impl FileDialog {
 
   fn select(&mut self, file: Option<FileInfo>) {
     if let Some(info) = &file {
-      self.filename_edit = get_file_name(info).to_owned();
+      if !info.is_dir() {
+        self.filename_edit = get_file_name(info).to_owned();
+      }
     }
     self.selected_file = file;
   }
