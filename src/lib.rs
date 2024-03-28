@@ -1,16 +1,17 @@
-use std::cmp::{max, min, Ordering};
-use std::fs::FileType;
 use std::{
+  cmp,
+  cmp::Ordering,
   env,
   fmt::Debug,
   fs,
+  fs::FileType,
   io::Error,
   ops::Deref,
   path::{Path, PathBuf},
 };
 
 use egui::{
-  vec2, Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
+  Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -66,11 +67,11 @@ pub struct FileDialog {
   anchor: Option<(Align2, Vec2)>,
   show_files_filter: Filter<PathBuf>,
   filename_filter: Filter<String>,
+  range_start: Option<usize>,
   resizable: bool,
   rename: bool,
   new_folder: bool,
   multi_select_enabled: bool,
-  range_start: Option<usize>,
   keep_on_top: bool,
 
   /// Show drive letters on Windows.
@@ -102,9 +103,11 @@ impl Debug for FileDialog {
       .field("multi_select", &self.multi_select_enabled)
       .field("range_start", &self.range_start)
       .field("keep_on_top", &self.keep_on_top);
+
     // Closures don't implement std::fmt::Debug.
-    // .field("shown_files_filter", &self.shown_files_filter)
-    // .field("filename_filter", &self.filename_filter)
+    // let dbg = dbg
+    //   .field("shown_files_filter", &self.shown_files_filter)
+    //   .field("filename_filter", &self.filename_filter);
 
     #[cfg(unix)]
     let dbg = dbg.field("show_hidden", &self.show_hidden);
@@ -165,7 +168,7 @@ impl FileDialog {
 
       id: None,
       current_pos: None,
-      default_size: vec2(512.0, 512.0),
+      default_size: egui::vec2(512.0, 512.0),
       anchor: None,
       show_files_filter: Box::new(|_| true),
       filename_filter: Box::new(|_| true),
@@ -394,7 +397,7 @@ impl FileDialog {
   fn select_range(&mut self, idx: usize) {
     if let Ok(files) = &mut self.files {
       if let Some(range_start) = self.range_start {
-        let range = min(idx, range_start)..=max(idx, range_start);
+        let range = cmp::min(idx, range_start)..=cmp::max(idx, range_start);
         for i in range {
           files[i].selected = true;
         }
