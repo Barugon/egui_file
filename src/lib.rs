@@ -787,11 +787,6 @@ impl FileDialog {
         .filter_map(|entry| {
           let info = FileInfo::new(entry.path());
           if !info.is_dir() {
-            // Do not show system files.
-            if !info.path.is_file() {
-              return None;
-            }
-
             // Filter.
             if !(self.show_files_filter)(&info.path) {
               return None;
