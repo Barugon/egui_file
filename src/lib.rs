@@ -73,6 +73,7 @@ pub struct FileDialog {
   new_folder: bool,
   multi_select_enabled: bool,
   keep_on_top: bool,
+  show_system_files: bool,
 
   /// Show drive letters on Windows.
   #[cfg(windows)]
@@ -102,7 +103,8 @@ impl Debug for FileDialog {
       .field("new_folder", &self.new_folder)
       .field("multi_select", &self.multi_select_enabled)
       .field("range_start", &self.range_start)
-      .field("keep_on_top", &self.keep_on_top);
+      .field("keep_on_top", &self.keep_on_top)
+      .field("show_system_files", &self.show_system_files);
 
     // Closures don't implement std::fmt::Debug.
     // let dbg = dbg
@@ -184,6 +186,7 @@ impl FileDialog {
       multi_select_enabled: false,
       range_start: None,
       keep_on_top: false,
+      show_system_files: false,
     }
   }
 
@@ -255,6 +258,7 @@ impl FileDialog {
   pub fn has_multi_select(&self) -> bool {
     self.multi_select_enabled
   }
+
   /// Show the mapped drives on Windows. Default is `true`.
   #[cfg(windows)]
   pub fn show_drives(mut self, drives: bool) -> Self {
@@ -274,8 +278,15 @@ impl FileDialog {
     self
   }
 
+  /// Set to true in order to keep this window on top of other windows. Default is `false`.
   pub fn keep_on_top(mut self, keep_on_top: bool) -> Self {
     self.keep_on_top = keep_on_top;
+    self
+  }
+
+  /// Set to true in order to show system files. Default is `false`.
+  pub fn show_system_files(mut self, show_system_files: bool) -> Self {
+    self.show_system_files = show_system_files;
     self
   }
 
@@ -787,8 +798,8 @@ impl FileDialog {
         .filter_map(|entry| {
           let info = FileInfo::new(entry.path());
           if !info.is_dir() {
-            // Do not show system files.
-            if !info.path.is_file() {
+            if !self.show_system_files && !info.path.is_file() {
+              // Do not show system files.
               return None;
             }
 
