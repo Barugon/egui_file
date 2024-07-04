@@ -607,7 +607,10 @@ impl FileDialog {
           }
           DialogType::OpenFile => {
             ui.horizontal(|ui| {
-              ui.set_enabled(self.can_open());
+              if !self.can_open() {
+                ui.disable();
+              }
+
               if ui.button("Open").clicked() {
                 command = Some(Command::OpenSelected);
               };
@@ -625,7 +628,10 @@ impl FileDialog {
               };
             } else {
               ui.horizontal(|ui| {
-                ui.set_enabled(self.can_save());
+                if !self.can_save() {
+                  ui.disable();
+                }
+
                 if ui.button("Save").clicked() {
                   let filename = &self.filename_edit;
                   let path = self.path.join(filename);
