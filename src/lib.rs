@@ -63,6 +63,7 @@ pub struct FileDialog {
 
   id: Option<Id>,
   current_pos: Option<Pos2>,
+  default_pos: Option<Pos2>,
   default_size: Vec2,
   anchor: Option<(Align2, Vec2)>,
   show_files_filter: Filter<PathBuf>,
@@ -96,6 +97,7 @@ impl Debug for FileDialog {
       .field("state", &self.state)
       .field("dialog_type", &self.dialog_type)
       .field("current_pos", &self.current_pos)
+      .field("default_pos", &self.default_pos)
       .field("default_size", &self.default_size)
       .field("anchor", &self.anchor)
       .field("resizable", &self.resizable)
@@ -170,6 +172,7 @@ impl FileDialog {
 
       id: None,
       current_pos: None,
+      default_pos: None,
       default_size: egui::vec2(512.0, 512.0),
       anchor: None,
       show_files_filter: Box::new(|_| true),
@@ -220,13 +223,19 @@ impl FileDialog {
     self
   }
 
-  /// Set the window position.
+  /// Set the window's current position.
   pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
     self.current_pos = Some(current_pos.into());
     self
   }
 
-  /// Set the window default size.
+  /// Set the window's default position.
+  pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
+    self.default_pos = Some(default_pos.into());
+    self
+  }
+
+  /// Set the window's default size.
   pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
     self.default_size = default_size.into();
     self
@@ -375,7 +384,7 @@ impl FileDialog {
   fn select(&mut self, file: Option<FileInfo>) {
     if let Some(info) = &file {
       if !info.is_dir() {
-        self.filename_edit = get_file_name(info).to_owned();
+        get_file_name(info).clone_into(&mut self.filename_edit);
       }
     }
     self.selected_file = file;
@@ -483,6 +492,10 @@ impl FileDialog {
 
     if let Some(current_pos) = self.current_pos {
       window = window.current_pos(current_pos);
+    }
+
+    if let Some(default_pos) = self.default_pos {
+      window = window.default_pos(default_pos);
     }
 
     window.show(ctx, |ui| {
