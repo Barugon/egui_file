@@ -11,8 +11,8 @@ Taken from the [Dotrix](https://github.com/lowenware/dotrix) project, made into 
 
 ````toml
 [dependencies]
-egui_file = "0.17"
-eframe = "0.27"
+egui_file = "0.18"
+eframe = "0.28"
 ````
 
 ````rust
