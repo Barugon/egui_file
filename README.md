@@ -61,7 +61,7 @@ fn main() {
   let _ = eframe::run_native(
     "File Dialog Demo",
     eframe::NativeOptions::default(),
-    Box::new(|_cc| Box::new(Demo::default())),
+    Box::new(|_cc| Ok(Box::new(Demo::default()))),
   );
 }
 ````
