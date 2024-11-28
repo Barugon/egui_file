@@ -52,6 +52,36 @@ pub struct FileDialog {
   /// Dialog title text
   title: String,
 
+  /// Open button text
+  open_button_text: &'static str,
+
+  /// Save button text
+  save_button_text: &'static str,
+
+  /// Cancel button text
+  cancel_button_text: &'static str,
+
+  /// New Folder button text
+  new_folder_button_text: &'static str,
+
+  /// New Folder name text
+  new_folder_name_text: &'static str,
+
+  /// Rename button text
+  rename_button_text: &'static str,
+
+  /// Refresh button hover text
+  refresh_button_hover_text: &'static str,
+
+  /// Parent Folder button hover text
+  parent_folder_button_hover_text: &'static str,
+
+  /// File label text
+  file_label_text: &'static str,
+
+  /// Show Hidden checkbox text
+  show_hidden_checkbox_text: &'static str,
+
   /// Files in directory.
   files: Result<Vec<FileInfo>, Error>,
 
@@ -166,6 +196,16 @@ impl FileDialog {
         DialogType::SaveFile => "💾  Save File",
       }
       .to_string(),
+      open_button_text: "Open",
+      save_button_text: "Save",
+      cancel_button_text: "Cancel",
+      new_folder_button_text: "New Folder",
+      new_folder_name_text: "New folder",
+      rename_button_text: "Rename",
+      refresh_button_hover_text: "Refresh",
+      parent_folder_button_hover_text: "Parent Folder",
+      file_label_text: "File:",
+      show_hidden_checkbox_text: "Show Hidden",
       files: Ok(Vec::new()),
       state: State::Closed,
       dialog_type,
@@ -208,6 +248,66 @@ impl FileDialog {
     }
     .to_string()
       + title;
+    self
+  }
+
+  /// Set the open button text.
+  pub fn open_button_text(mut self, text: &'static str) -> Self {
+    self.open_button_text = text;
+    self
+  }
+
+  /// Set the save button text.
+  pub fn save_button_text(mut self, text: &'static str) -> Self {
+    self.save_button_text = text;
+    self
+  }
+
+  /// Set the cancel button text.
+  pub fn cancel_button_text(mut self, text: &'static str) -> Self {
+    self.cancel_button_text = text;
+    self
+  }
+
+  /// Set the new folder button text.
+  pub fn new_folder_button_text(mut self, text: &'static str) -> Self {
+    self.new_folder_button_text = text;
+    self
+  }
+
+  /// Set the new folder name text.
+  pub fn new_folder_name_text(mut self, text: &'static str) -> Self {
+    self.new_folder_name_text = text;
+    self
+  }
+
+  /// Set the refresh button hover text.
+  pub fn refresh_button_hover_text(mut self, text: &'static str) -> Self {
+    self.refresh_button_hover_text = text;
+    self
+  }
+
+  /// Set the parent folder button hover text.
+  pub fn parent_folder_button_hover_text(mut self, text: &'static str) -> Self {
+    self.parent_folder_button_hover_text = text;
+    self
+  }
+
+  /// Set the rename button text.
+  pub fn rename_button_text(mut self, text: &'static str) -> Self {
+    self.rename_button_text = text;
+    self
+  }
+
+  /// Set the file label text.
+  pub fn file_label_text(mut self, text: &'static str) -> Self {
+    self.file_label_text = text;
+    self
+  }
+
+  /// Set the show hidden checkbox text.
+  pub fn show_hidden_checkbox_text(mut self, text: &'static str) -> Self {
+    self.show_hidden_checkbox_text = text;
     self
   }
 
@@ -529,13 +629,15 @@ impl FileDialog {
     egui::TopBottomPanel::top("egui_file_top").show_inside(ui, |ui| {
       ui.horizontal(|ui| {
         ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
-          let response = ui.button("⬆").on_hover_text("Parent Folder");
+          let response = ui
+            .button("⬆")
+            .on_hover_text(self.parent_folder_button_hover_text);
           if response.clicked() {
             command = Some(Command::UpDirectory);
           }
         });
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          let response = ui.button("⟲").on_hover_text("Refresh");
+          let response = ui.button("⟲").on_hover_text(self.refresh_button_hover_text);
           if response.clicked() {
             command = Some(Command::Refresh);
           }
@@ -558,15 +660,15 @@ impl FileDialog {
     egui::TopBottomPanel::bottom("egui_file_bottom").show_inside(ui, |ui| {
       ui.add_space(ui.spacing().item_spacing.y * 2.0);
       ui.horizontal(|ui| {
-        ui.label("File:");
+        ui.label(self.file_label_text);
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          if self.new_folder && ui.button("New Folder").clicked() {
+          if self.new_folder && ui.button(self.new_folder_button_text).clicked() {
             command = Some(Command::CreateDirectory);
           }
 
           if self.rename {
             ui.add_enabled_ui(self.can_rename(), |ui| {
-              if ui.button("Rename").clicked() {
+              if ui.button(self.rename_button_text).clicked() {
                 if let Some(from) = self.selected_file.clone() {
                   let to = from.path.with_file_name(&self.filename_edit);
                   command = Some(Command::Rename(from.path, to));
@@ -613,7 +715,7 @@ impl FileDialog {
         match self.dialog_type {
           DialogType::SelectFolder => {
             ui.horizontal(|ui| {
-              if ui.button("Open").clicked() {
+              if ui.button(self.open_button_text).clicked() {
                 command = Some(Command::Folder);
               };
             });
@@ -624,7 +726,7 @@ impl FileDialog {
                 ui.disable();
               }
 
-              if ui.button("Open").clicked() {
+              if ui.button(self.open_button_text).clicked() {
                 command = Some(Command::OpenSelected);
               };
             });
@@ -636,7 +738,7 @@ impl FileDialog {
             };
 
             if should_open_directory {
-              if ui.button("Open").clicked() {
+              if ui.button(self.open_button_text).clicked() {
                 command = Some(Command::OpenSelected);
               };
             } else {
@@ -645,7 +747,7 @@ impl FileDialog {
                   ui.disable();
                 }
 
-                if ui.button("Save").clicked() {
+                if ui.button(self.save_button_text).clicked() {
                   let filename = &self.filename_edit;
                   let path = self.path.join(filename);
                   command = Some(Command::Save(FileInfo::new(path)));
@@ -655,13 +757,16 @@ impl FileDialog {
           }
         }
 
-        if ui.button("Cancel").clicked() {
+        if ui.button(self.cancel_button_text).clicked() {
           command = Some(Command::Cancel);
         }
 
         #[cfg(unix)]
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          if ui.checkbox(&mut self.show_hidden, "Show Hidden").changed() {
+          if ui
+            .checkbox(&mut self.show_hidden, self.show_hidden_checkbox_text)
+            .changed()
+          {
             self.refresh();
           }
         });
@@ -775,7 +880,7 @@ impl FileDialog {
         Command::CreateDirectory => {
           let mut path = self.path.clone();
           let name = match self.filename_edit.is_empty() {
-            true => "New folder",
+            true => self.new_folder_name_text,
             false => &self.filename_edit,
           };
           path.push(name);
