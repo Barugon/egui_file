@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   cmp,
   cmp::Ordering,
   env,
@@ -50,37 +51,37 @@ pub struct FileDialog {
   filename_edit: String,
 
   /// Dialog title text
-  title: String,
+  title: Cow<'static, str>,
 
   /// Open button text
-  open_button_text: &'static str,
+  open_button_text: Cow<'static, str>,
 
   /// Save button text
-  save_button_text: &'static str,
+  save_button_text: Cow<'static, str>,
 
   /// Cancel button text
-  cancel_button_text: &'static str,
+  cancel_button_text: Cow<'static, str>,
 
   /// New Folder button text
-  new_folder_button_text: &'static str,
+  new_folder_button_text: Cow<'static, str>,
 
   /// New Folder name text
-  new_folder_name_text: &'static str,
+  new_folder_name_text: Cow<'static, str>,
 
   /// Rename button text
-  rename_button_text: &'static str,
+  rename_button_text: Cow<'static, str>,
 
   /// Refresh button hover text
-  refresh_button_hover_text: &'static str,
+  refresh_button_hover_text: Cow<'static, str>,
 
   /// Parent Folder button hover text
-  parent_folder_button_hover_text: &'static str,
+  parent_folder_button_hover_text: Cow<'static, str>,
 
   /// File label text
-  file_label_text: &'static str,
+  file_label_text: Cow<'static, str>,
 
   /// Show Hidden checkbox text
-  show_hidden_checkbox_text: &'static str,
+  show_hidden_checkbox_text: Cow<'static, str>,
 
   /// Files in directory.
   files: Result<Vec<FileInfo>, Error>,
@@ -195,17 +196,17 @@ impl FileDialog {
         DialogType::OpenFile => "📂  Open File",
         DialogType::SaveFile => "💾  Save File",
       }
-      .to_string(),
-      open_button_text: "Open",
-      save_button_text: "Save",
-      cancel_button_text: "Cancel",
-      new_folder_button_text: "New Folder",
-      new_folder_name_text: "New folder",
-      rename_button_text: "Rename",
-      refresh_button_hover_text: "Refresh",
-      parent_folder_button_hover_text: "Parent Folder",
-      file_label_text: "File:",
-      show_hidden_checkbox_text: "Show Hidden",
+      .into(),
+      open_button_text: "Open".into(),
+      save_button_text: "Save".into(),
+      cancel_button_text: "Cancel".into(),
+      new_folder_button_text: "New Folder".into(),
+      new_folder_name_text: "New folder".into(),
+      rename_button_text: "Rename".into(),
+      refresh_button_hover_text: "Refresh".into(),
+      parent_folder_button_hover_text: "Parent Folder".into(),
+      file_label_text: "File:".into(),
+      show_hidden_checkbox_text: "Show Hidden".into(),
       files: Ok(Vec::new()),
       state: State::Closed,
       dialog_type,
@@ -241,72 +242,73 @@ impl FileDialog {
 
   /// Set the window title text.
   pub fn title(mut self, title: &str) -> Self {
-    self.title = match self.dialog_type {
+    self.title = (match self.dialog_type {
       DialogType::SelectFolder => "📁  ",
       DialogType::OpenFile => "📂  ",
       DialogType::SaveFile => "💾  ",
     }
     .to_string()
-      + title;
+      + title)
+      .into();
     self
   }
 
   /// Set the open button text.
-  pub fn open_button_text(mut self, text: &'static str) -> Self {
+  pub fn open_button_text(mut self, text: Cow<'static, str>) -> Self {
     self.open_button_text = text;
     self
   }
 
   /// Set the save button text.
-  pub fn save_button_text(mut self, text: &'static str) -> Self {
+  pub fn save_button_text(mut self, text: Cow<'static, str>) -> Self {
     self.save_button_text = text;
     self
   }
 
   /// Set the cancel button text.
-  pub fn cancel_button_text(mut self, text: &'static str) -> Self {
+  pub fn cancel_button_text(mut self, text: Cow<'static, str>) -> Self {
     self.cancel_button_text = text;
     self
   }
 
   /// Set the new folder button text.
-  pub fn new_folder_button_text(mut self, text: &'static str) -> Self {
+  pub fn new_folder_button_text(mut self, text: Cow<'static, str>) -> Self {
     self.new_folder_button_text = text;
     self
   }
 
   /// Set the new folder name text.
-  pub fn new_folder_name_text(mut self, text: &'static str) -> Self {
+  pub fn new_folder_name_text(mut self, text: Cow<'static, str>) -> Self {
     self.new_folder_name_text = text;
     self
   }
 
   /// Set the refresh button hover text.
-  pub fn refresh_button_hover_text(mut self, text: &'static str) -> Self {
+  pub fn refresh_button_hover_text(mut self, text: Cow<'static, str>) -> Self {
     self.refresh_button_hover_text = text;
     self
   }
 
   /// Set the parent folder button hover text.
-  pub fn parent_folder_button_hover_text(mut self, text: &'static str) -> Self {
+  pub fn parent_folder_button_hover_text(mut self, text: Cow<'static, str>) -> Self {
     self.parent_folder_button_hover_text = text;
     self
   }
 
   /// Set the rename button text.
-  pub fn rename_button_text(mut self, text: &'static str) -> Self {
+  pub fn rename_button_text(mut self, text: Cow<'static, str>) -> Self {
     self.rename_button_text = text;
     self
   }
 
   /// Set the file label text.
-  pub fn file_label_text(mut self, text: &'static str) -> Self {
+  pub fn file_label_text(mut self, text: Cow<'static, str>) -> Self {
     self.file_label_text = text;
     self
   }
 
   /// Set the show hidden checkbox text.
-  pub fn show_hidden_checkbox_text(mut self, text: &'static str) -> Self {
+  pub fn show_hidden_checkbox_text(mut self, text: Cow<'static, str>) -> Self {
     self.show_hidden_checkbox_text = text;
     self
   }
@@ -576,7 +578,7 @@ impl FileDialog {
   }
 
   fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
-    let mut window = Window::new(RichText::new(&self.title).strong())
+    let mut window = Window::new(RichText::new(self.title.as_ref()).strong())
       .open(is_open)
       .default_size(self.default_size)
       .resizable(self.resizable)
@@ -631,13 +633,15 @@ impl FileDialog {
         ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
           let response = ui
             .button("⬆")
-            .on_hover_text(self.parent_folder_button_hover_text);
+            .on_hover_text(self.parent_folder_button_hover_text.as_ref());
           if response.clicked() {
             command = Some(Command::UpDirectory);
           }
         });
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          let response = ui.button("⟲").on_hover_text(self.refresh_button_hover_text);
+          let response = ui
+            .button("⟲")
+            .on_hover_text(self.refresh_button_hover_text.as_ref());
           if response.clicked() {
             command = Some(Command::Refresh);
           }
@@ -660,15 +664,15 @@ impl FileDialog {
     egui::TopBottomPanel::bottom("egui_file_bottom").show_inside(ui, |ui| {
       ui.add_space(ui.spacing().item_spacing.y * 2.0);
       ui.horizontal(|ui| {
-        ui.label(self.file_label_text);
+        ui.label(self.file_label_text.as_ref());
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          if self.new_folder && ui.button(self.new_folder_button_text).clicked() {
+          if self.new_folder && ui.button(self.new_folder_button_text.as_ref()).clicked() {
             command = Some(Command::CreateDirectory);
           }
 
           if self.rename {
             ui.add_enabled_ui(self.can_rename(), |ui| {
-              if ui.button(self.rename_button_text).clicked() {
+              if ui.button(self.rename_button_text.as_ref()).clicked() {
                 if let Some(from) = self.selected_file.clone() {
                   let to = from.path.with_file_name(&self.filename_edit);
                   command = Some(Command::Rename(from.path, to));
@@ -715,7 +719,7 @@ impl FileDialog {
         match self.dialog_type {
           DialogType::SelectFolder => {
             ui.horizontal(|ui| {
-              if ui.button(self.open_button_text).clicked() {
+              if ui.button(self.open_button_text.as_ref()).clicked() {
                 command = Some(Command::Folder);
               };
             });
@@ -726,7 +730,7 @@ impl FileDialog {
                 ui.disable();
               }
 
-              if ui.button(self.open_button_text).clicked() {
+              if ui.button(self.open_button_text.as_ref()).clicked() {
                 command = Some(Command::OpenSelected);
               };
             });
@@ -738,7 +742,7 @@ impl FileDialog {
             };
 
             if should_open_directory {
-              if ui.button(self.open_button_text).clicked() {
+              if ui.button(self.open_button_text.as_ref()).clicked() {
                 command = Some(Command::OpenSelected);
               };
             } else {
@@ -747,7 +751,7 @@ impl FileDialog {
                   ui.disable();
                 }
 
-                if ui.button(self.save_button_text).clicked() {
+                if ui.button(self.save_button_text.as_ref()).clicked() {
                   let filename = &self.filename_edit;
                   let path = self.path.join(filename);
                   command = Some(Command::Save(FileInfo::new(path)));
@@ -757,14 +761,17 @@ impl FileDialog {
           }
         }
 
-        if ui.button(self.cancel_button_text).clicked() {
+        if ui.button(self.cancel_button_text.as_ref()).clicked() {
           command = Some(Command::Cancel);
         }
 
         #[cfg(unix)]
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
           if ui
-            .checkbox(&mut self.show_hidden, self.show_hidden_checkbox_text)
+            .checkbox(
+              &mut self.show_hidden,
+              self.show_hidden_checkbox_text.as_ref(),
+            )
             .changed()
           {
             self.refresh();
@@ -880,8 +887,8 @@ impl FileDialog {
         Command::CreateDirectory => {
           let mut path = self.path.clone();
           let name = match self.filename_edit.is_empty() {
-            true => self.new_folder_name_text,
-            false => &self.filename_edit,
+            true => self.new_folder_name_text.as_ref(),
+            false => self.filename_edit.as_ref(),
           };
           path.push(name);
           match fs::create_dir(&path) {
