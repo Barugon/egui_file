@@ -10,7 +10,7 @@ license = "MIT"
 name = "egui_file"
 repository = "https://github.com/Barugon/egui_file"
 rust-version = "1.76.0"
-version = "0.19.0"
+version = "0.20.0"
 
 [dependencies.egui]
-version = "0.29"
+version = "0.30"
