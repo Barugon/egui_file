@@ -24,7 +24,8 @@ impl Vfs for Fs {
     path: &Path,
     show_system_files: bool,
     show_files_filter: &Filter<PathBuf>,
-    show_hidden: bool,
+    #[cfg(unix)] show_hidden: bool,
+    #[cfg(windows)] show_drives: bool,
   ) -> Result<Vec<Box<dyn VfsFile>>, Error> {
     std::fs::read_dir(path).map(|entries| {
       let mut file_infos: Vec<Box<dyn VfsFile>> = entries
@@ -61,12 +62,12 @@ impl Vfs for Fs {
       });
 
       #[cfg(windows)]
-      let file_infos = match self.show_drives {
+      let file_infos = match show_drives {
         true => {
           let drives = get_drives();
           let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
           for drive in drives {
-            infos.push(FileInfo::new(drive));
+            infos.push(Box::new(FileInfo::new(drive)) as Box<dyn VfsFile>);
           }
           infos.append(&mut file_infos);
           infos
@@ -120,8 +121,8 @@ impl VfsFile for FileInfo {
 
   fn get_file_name(&self) -> &str {
     #[cfg(windows)]
-    if info.is_dir() && is_drive_root(&info.path) {
-      return info.path.to_str().unwrap_or_default();
+    if self.is_dir() && is_drive_root(&self.path) {
+      return self.path.to_str().unwrap_or_default();
     }
     self
       .path()

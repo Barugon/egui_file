@@ -493,7 +493,10 @@ impl FileDialog {
       &self.path,
       self.show_system_files,
       &self.show_files_filter,
+      #[cfg(unix)]
       self.show_hidden,
+      #[cfg(windows)]
+      self.show_drives,
     );
     self.path_edit = String::from(self.path.to_str().unwrap_or_default());
     self.select(None);

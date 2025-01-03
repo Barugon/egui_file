@@ -50,7 +50,8 @@ impl Vfs for FakeFs {
     path: &Path,
     _show_system_files: bool,
     _show_files_filter: &Filter<PathBuf>,
-    _show_hidden: bool,
+    #[cfg(unix)] _show_hidden: bool,
+    #[cfg(windows)] _show_drives: bool,
   ) -> Result<Vec<Box<dyn VfsFile>>, Error> {
     let mut ret: Vec<Box<dyn VfsFile>> = vec![];
     for f in self.nodes.lock().unwrap().iter() {
