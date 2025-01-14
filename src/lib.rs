@@ -125,6 +125,9 @@ pub struct FileDialog {
   fs: Box<dyn Vfs + 'static>,
 }
 
+unsafe impl Send for FileDialog {}
+unsafe impl Sync for FileDialog {}
+
 impl Debug for FileDialog {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let mut dbg = f.debug_struct("FileDialog");
