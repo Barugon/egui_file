@@ -1,9 +1,12 @@
 {
-  "editor.tabSize": 2,
   "cSpell.ignoreWords": [
     "dotrix",
     "eframe",
     "egui",
     "scrollarea"
-  ]
+  ],
+  "editor.rulers": [
+    120
+  ],
+  "editor.tabSize": 2
 }

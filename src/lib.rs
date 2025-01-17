@@ -8,9 +8,7 @@ use std::{
 };
 
 use dyn_clone::clone_box;
-use egui::{
-  Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window,
-};
+use egui::{Align2, Context, Id, Key, Layout, Pos2, RichText, ScrollArea, TextEdit, Ui, Vec2, Window};
 use fs::FileInfo;
 use fs::Fs;
 
@@ -442,13 +440,7 @@ impl FileDialog {
     match self.files {
       Ok(ref files) => files
         .iter()
-        .filter_map(|info| {
-          if info.selected() {
-            Some(info.path())
-          } else {
-            None
-          }
-        })
+        .filter_map(|info| if info.selected() { Some(info.path()) } else { None })
         .collect(),
       Err(_) => Vec::new(),
     }
@@ -663,17 +655,12 @@ impl FileDialog {
           }
         });
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-          let response = ui
-            .button("⟲")
-            .on_hover_text(self.refresh_button_hover_text.as_ref());
+          let response = ui.button("⟲").on_hover_text(self.refresh_button_hover_text.as_ref());
           if response.clicked() {
             command = Some(Command::Refresh);
           }
 
-          let response = ui.add_sized(
-            ui.available_size(),
-            TextEdit::singleline(&mut self.path_edit),
-          );
+          let response = ui.add_sized(ui.available_size(), TextEdit::singleline(&mut self.path_edit));
 
           if response.lost_focus() {
             let path = PathBuf::from(&self.path_edit);
@@ -705,10 +692,7 @@ impl FileDialog {
             });
           }
 
-          let response = ui.add_sized(
-            ui.available_size(),
-            TextEdit::singleline(&mut self.filename_edit),
-          );
+          let response = ui.add_sized(ui.available_size(), TextEdit::singleline(&mut self.filename_edit));
 
           if response.lost_focus() {
             let ctx = response.ctx;
@@ -792,10 +776,7 @@ impl FileDialog {
         #[cfg(unix)]
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
           if ui
-            .checkbox(
-              &mut self.show_hidden,
-              self.show_hidden_checkbox_text.as_ref(),
-            )
+            .checkbox(&mut self.show_hidden, self.show_hidden_checkbox_text.as_ref())
             .changed()
           {
             self.refresh();
