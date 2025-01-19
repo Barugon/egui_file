@@ -20,7 +20,7 @@ pub trait Vfs {
   ) -> Result<Vec<Box<dyn VfsFile>>, Error>;
 }
 
-pub trait VfsFile: std::fmt::Debug + DynClone {
+pub trait VfsFile: std::fmt::Debug + DynClone + Send + Sync {
   fn is_file(&self) -> bool;
   fn is_dir(&self) -> bool;
   fn path(&self) -> &Path;
