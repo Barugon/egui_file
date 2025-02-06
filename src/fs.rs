@@ -153,7 +153,7 @@ pub fn is_drive_root(path: &Path) -> bool {
     .to_str()
     .filter(|path| &path[1..] == ":\\")
     .and_then(|path| path.chars().next())
-    .map_or(false, |ch| ch.is_ascii_uppercase())
+    .is_some_and(|ch| ch.is_ascii_uppercase())
 }
 
 #[cfg(windows)]

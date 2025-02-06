@@ -37,7 +37,7 @@ impl FakeFs {
 
 impl Vfs for FakeFs {
   fn create_dir(&self, path: &Path) -> io::Result<()> {
-    self.nodes.lock().unwrap().push(Node::new(path.as_ref()));
+    self.nodes.lock().unwrap().push(Node::new(path));
     Ok(())
   }
 
@@ -104,6 +104,6 @@ impl VfsFile for Node {
   }
 
   fn get_file_name(&self) -> &str {
-    &self.path.file_name().unwrap().to_str().unwrap()
+    self.path.file_name().unwrap().to_str().unwrap()
   }
 }
