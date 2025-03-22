@@ -5,7 +5,7 @@ use dyn_clone::DynClone;
 
 use crate::Filter;
 
-pub trait Vfs {
+pub trait Vfs: Send + Sync {
   fn create_dir(&self, path: &Path) -> io::Result<()>;
 
   fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
