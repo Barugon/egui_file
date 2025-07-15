@@ -1,12 +1,18 @@
 {
   "cSpell.ignoreWords": [
+    "barugon",
     "dotrix",
     "eframe",
     "egui",
+    "kartashov",
     "scrollarea"
   ],
   "editor.rulers": [
     120
   ],
-  "editor.tabSize": 2
+  "editor.tabSize": 2,
+  "files.exclude": {
+    "**/Cargo.lock": true,
+    "**/target/": true
+  }
 }
