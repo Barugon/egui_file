@@ -13,10 +13,10 @@ rust-version = "1.76.0"
 version = "0.22.1"
 
 [dependencies.egui]
-version = "0.31"
+version = "0.32"
 
 [dependencies.dyn-clone]
 version = "1.0.17"
 
 [dev-dependencies.eframe]
-version = "0.31"
+version = "0.32"
